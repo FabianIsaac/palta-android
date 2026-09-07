@@ -1,0 +1,61 @@
+<resources>
+    <string name="app_name">Palta</string>
+
+    <!-- Navegación y títulos -->
+    <string name="title_food_camera">Escanear Comida</string>
+    <string name="title_review_meal">Revisa tu comida</string>
+    <string name="title_settings">Configuración</string>
+
+    <!-- Cámara y captura -->
+    <string name="camera_instruction">Enfoca tu plato de comida para escanear</string>
+    <string name="btn_take_photo">Tomar foto</string>
+    <string name="btn_select_gallery">Elegir de galería</string>
+    <string name="btn_toggle_flash">Linterna</string>
+    <string name="camera_permission_required">Se requiere permiso de cámara para capturar fotos de tus comidas.</string>
+    <string name="btn_grant_permission">Conceder permiso</string>
+
+    <!-- Revisión y edición de comida -->
+    <string name="review_subtitle">Revisa y ajusta las porciones antes de guardar tu comida.</string>
+    <string name="category_label">Tipo de comida</string>
+    <string name="category_desayuno">Desayuno</string>
+    <string name="category_almuerzo">Almuerzo</string>
+    <string name="category_once_cena">Once / Cena</string>
+    <string name="category_colaciones">Colaciones</string>
+    <string name="detected_foods_section">Alimentos detectados</string>
+    <string name="serving_grams_placeholder">Porción (g)</string>
+    <string name="unit_grams">g</string>
+    <string name="unit_kcal">kcal</string>
+    <string name="btn_add_food">Agregar alimento</string>
+    <string name="btn_delete_item">Eliminar alimento</string>
+    <string name="btn_confirm_save">Confirmar y Guardar</string>
+    <string name="label_total_calories">Calorías Totales</string>
+    <string name="label_protein">Proteína</string>
+    <string name="label_carbs">Carbohidratos</string>
+    <string name="label_fat">Grasas</string>
+    <string name="msg_meal_saved_success">¡Comida guardada exitosamente!</string>
+    <string name="msg_meal_saved_and_synced">¡Comida guardada y sincronizada con Health Connect!</string>
+
+    <!-- Health Connect Diálogo Explicativo -->
+    <string name="health_connect_dialog_title">Sincroniza con Health Connect</string>
+    <string name="health_connect_dialog_description">Conecta la aplicación con Google Health Connect para registrar automáticamente los nutrientes de tus comidas y mantener tus datos de salud al día en un solo lugar.</string>
+    <string name="btn_connect_health">Conectar ahora</string>
+    <string name="btn_remind_later">Ahora no</string>
+
+    <!-- Configuración IA y MiniMax -->
+    <string name="settings_ai_vision_title">Motor de Inteligencia Artificial Visual</string>
+    <string name="settings_ai_engine_label">Selecciona el analizador de visión:</string>
+    <string name="engine_local">Analizador local (Offline, en el dispositivo)</string>
+    <string name="engine_minimax">MiniMax Vision (Nube multimodal, mayor precisión)</string>
+    <string name="settings_minimax_api_key_label">Clave de API de MiniMax (API Key)</string>
+    <string name="settings_minimax_api_key_hint">Ingresa tu clave de API</string>
+    <string name="settings_health_connect_toggle">Sincronización automática con Health Connect</string>
+    <string name="btn_save_settings">Guardar configuración</string>
+    <string name="msg_settings_saved">Configuración guardada correctamente.</string>
+
+    <!-- Errores y estados vacíos -->
+    <string name="error_no_foods_detected">No se identificaron alimentos en la foto. Intenta con mejor iluminación o agrega los ítems manualmente.</string>
+    <string name="error_image_processing">Ocurrió un problema al procesar la imagen. Por favor intenta nuevamente.</string>
+    <string name="empty_items_hint">Agrega al menos un alimento para poder guardar tu comida.</string>
+    <string name="loading_analyzing_image">Analizando tu plato con Inteligencia Artificial…</string>
+    <string name="saving_meal_progress">Guardando tu comida…</string>
+</resources>

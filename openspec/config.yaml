@@ -1,0 +1,51 @@
+schema: spec-driven
+
+context: |
+  Aplicación: Calculadora y Seguimiento de Calorías y Macronutrientes para Android
+  Plataforma: Android Nativo (minSdk 26, targetSdk 35)
+  Lenguaje: Kotlin 2.x
+  UI Framework: Jetpack Compose + Material Design 3 (Material You con soporte dinámico de colores)
+  Arquitectura: Clean Architecture + MVVM / Unidirectional Data Flow (UDF)
+  Gestión de Estado: StateFlow / SharedFlow con Coroutines
+  Persistencia: Room Database (SQLite) con diseño Offline-First
+  Inyección de Dependencias: Hilt / Koin
+  Testing: JUnit 5, MockK / Turbine (Flows), Compose Testing UI
+  
+  Principios de Dominio y Nutrición:
+  - Fórmulas metabólicas estandarizadas: Mifflin-St Jeor (por defecto) y Harris-Benedict revisada para cálculo de TDEE y BMR.
+  - Gestión de macronutrientes: Proteínas (4 kcal/g), Carbohidratos (4 kcal/g), Grasas (9 kcal/g).
+  - Precisión matemática: Los cálculos de calorías y macros deben ser deterministas y probados con tests unitarios.
+  - Privacidad y disponibilidad: Toda la información del usuario reside localmente en el dispositivo de forma predeterminada.
+
+  Idioma y Localización de la Interfaz (UI):
+  - Idioma exclusivo: 100% Español Latinoamericano, específicamente Español de Chile (es-CL).
+  - Regla estricta contra voseo: PROHIBIDO cualquier tipo de voseo rioplatense/argentino (prohibido "andá", "creá", "hacé", "guardá", "tenés", "vos").
+  - Conjugaciones requeridas: Usar tuteo estándar/chileno ("crea", "agrega", "guarda", "ingresa", "selecciona", "revisa").
+  - Términos y vocabulario chileno: Usar terminología cotidiana de Chile (ej. "Once / Cena", "Colaciones", "Palta", "Marraqueta").
+
+rules:
+  proposal:
+    - Incluir impacto en la base de datos (migraciones Room si aplica)
+    - Especificar componentes de UI y estados de Compose afectados
+    - Definir si altera fórmulas o métricas nutricionales
+  specs:
+    - Usar formato EARS estricto con cláusulas SHALL, MUST o SHOULD para requisitos
+    - Cada requisito debe incluir al menos un escenario en formato Given / When / Then
+    - Especificar unidades de medida claras (kcal, gramos, ml, kg, cm)
+    - Todo texto visible de UI en escenarios debe estar en español chileno sin voseo
+  design:
+    - Describir flujos de datos unidireccionales (UDF): Eventos de UI -> ViewModel -> UseCase/Repository -> UI State
+    - Mantener la lógica de negocio y fórmulas en el módulo/capa de Domain pura (sin dependencias de Android framework)
+  tasks:
+    - Priorizar capa de Domain (modelos, fórmulas, casos de uso con tests) antes de UI y persistencia
+    - Incluir paso de pruebas unitarias explícito para cada caso de uso o repositorio
+
+operations:
+  apply:
+    guidance:
+      - Validar que no se rompan las pruebas existentes antes de crear nuevas pantallas
+      - Asegurar que los componentes de Compose tengan vistas previas (@Preview) con datos simulados
+      - Verificar que todos los strings de interfaz respeten estrictamente el español de Chile sin voseo argentino
+  archive:
+    guidance:
+      - Resumir con precisión los componentes agregados o modificados en el registro histórico

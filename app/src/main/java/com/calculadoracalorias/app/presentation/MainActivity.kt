@@ -2,11 +2,13 @@ package com.calculadoracalorias.app.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.health.connect.client.PermissionController
 import com.calculadoracalorias.app.data.local.AppDatabase
 import com.calculadoracalorias.app.data.local.LocalFoodCatalogRepository
 import com.calculadoracalorias.app.data.preferences.UserPreferencesRepository
@@ -91,7 +94,8 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         reviewViewModel = reviewViewModel,
                         analyzerFactory = analyzerFactory,
-                        userPreferencesRepository = userPreferencesRepository
+                        userPreferencesRepository = userPreferencesRepository,
+                        healthConnectRepository = healthConnectRepository
                     )
                 }
             }
@@ -103,7 +107,8 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     reviewViewModel: FoodScanReviewViewModel,
     analyzerFactory: FoodVisionAnalyzerFactory,
-    userPreferencesRepository: UserPreferencesRepository
+    userPreferencesRepository: UserPreferencesRepository,
+    healthConnectRepository: AndroidHealthConnectRepository
 ) {
     var currentScreen by remember { mutableStateOf(AppDestination.CAMERA) }
     val uiState by reviewViewModel.uiState.collectAsState()
@@ -111,6 +116,22 @@ fun AppNavigation(
         initial = com.calculadoracalorias.app.data.preferences.UserPreferences()
     )
     val coroutineScope = rememberCoroutineScope()
+
+    var isHealthAvailable by remember { mutableStateOf(false) }
+    var hasHealthPermission by remember { mutableStateOf(false) }
+
+    val healthPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        hasHealthPermission = granted.containsAll(healthConnectRepository.requiredPermissions)
+    }
+
+    LaunchedEffect(Unit) {
+        isHealthAvailable = healthConnectRepository.isHealthConnectAvailable()
+        if (isHealthAvailable) {
+            hasHealthPermission = healthConnectRepository.hasWriteNutritionPermission()
+        }
+    }
 
     when (currentScreen) {
         AppDestination.CAMERA -> {
@@ -140,6 +161,17 @@ fun AppNavigation(
                             currentScreen = AppDestination.REVIEW
                         }
                     }
+                },
+                onNavigateToSettings = { currentScreen = AppDestination.SETTINGS },
+                onNavigateToManualEntry = {
+                    reviewViewModel.initializeWithResult(
+                        DetectedMealResult(
+                            items = emptyList(),
+                            suggestedMealType = com.calculadoracalorias.app.domain.model.MealCategory.ALMUERZO,
+                            analysisSource = userPreferences.preferredVisionSource
+                        )
+                    )
+                    currentScreen = AppDestination.REVIEW
                 }
             )
         }
@@ -158,6 +190,11 @@ fun AppNavigation(
                 currentApiKey = userPreferences.miniMaxApiKey,
                 currentVisionSource = userPreferences.preferredVisionSource,
                 currentHealthSyncEnabled = userPreferences.healthConnectSyncEnabled,
+                isHealthConnectAvailable = isHealthAvailable,
+                hasHealthConnectPermission = hasHealthPermission,
+                onRequestHealthConnectPermission = {
+                    healthPermissionLauncher.launch(healthConnectRepository.requiredPermissions)
+                },
                 onSaveSettings = { apiKey, source, sync ->
                     coroutineScope.launch {
                         userPreferencesRepository.setMiniMaxApiKey(apiKey)

@@ -53,12 +53,19 @@ import com.calculadoracalorias.app.domain.model.VisionSource
 import com.calculadoracalorias.app.presentation.theme.CalculadoraCaloriasTheme
 import kotlinx.coroutines.launch
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Warning
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     currentApiKey: String = "",
     currentVisionSource: VisionSource = VisionSource.LOCAL_DEVICE,
     currentHealthSyncEnabled: Boolean = true,
+    isHealthConnectAvailable: Boolean = true,
+    hasHealthConnectPermission: Boolean = false,
+    onRequestHealthConnectPermission: () -> Unit = {},
     onSaveSettings: (apiKey: String, source: VisionSource, syncEnabled: Boolean) -> Unit = { _, _, _ -> },
     onNavigateBack: () -> Unit = {}
 ) {
@@ -196,29 +203,77 @@ fun SettingsScreen(
                 }
             }
 
-            // Toggle de Health Connect
+            // Sección de Google Health Connect
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (hasHealthConnectPermission) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                )
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.settings_health_connect_toggle),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Switch(
-                        checked = isHealthSyncEnabled,
-                        onCheckedChange = { isHealthSyncEnabled = it }
-                    )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (hasHealthConnectPermission) Icons.Default.CheckCircle else Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = if (hasHealthConnectPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Google Health Connect",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (!isHealthConnectAvailable) {
+                        Text(
+                            text = "Health Connect no está instalado o disponible en tu dispositivo. Puedes instalarlo gratis desde Google Play Store.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else if (hasHealthConnectPermission) {
+                        Text(
+                            text = "✅ Conectado. Las comidas confirmadas se sincronizan automáticamente con tu registro de salud.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        Text(
+                            text = "Conecta la app con Health Connect para registrar automáticamente calorías y macronutrientes en tu centro de salud de Android.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onRequestHealthConnectPermission,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Conectar con Health Connect")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_health_connect_toggle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(
+                            checked = isHealthSyncEnabled,
+                            onCheckedChange = { isHealthSyncEnabled = it }
+                        )
+                    }
                 }
             }
 

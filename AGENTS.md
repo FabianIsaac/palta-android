@@ -27,6 +27,12 @@ Welcome to the **Calculadora de Calorías para Android** project repository. Thi
    - Usar tuteo estándar / chileno (*crea, guarda, agrega, ingresa, revisa, tú*).
    - Adaptar comidas y nombres cotidianos a Chile: *Desayuno, Almuerzo, Once / Cena, Colaciones; Palta, Marraqueta, etc.*
 
+5. **Envío automático de APK a Telegram tras agregar nuevas funcionalidades (OBLIGATORIO):**
+   - Cada vez que se termine de implementar un cambio que agregue nuevas funcionalidades (por ejemplo, al completar la fase de implementación de `/opsx:apply` o antes de archivar), se debe compilar y enviar automáticamente el APK ejecutable al usuario por Telegram ejecutando:
+     ```bash
+     bash ./scripts/send_apk_telegram.sh
+     ```
+
 ---
 
 ## 2. Flujo de Trabajo OpenSpec (`/opsx`)

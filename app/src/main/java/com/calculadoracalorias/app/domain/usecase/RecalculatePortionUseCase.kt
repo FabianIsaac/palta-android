@@ -16,7 +16,17 @@ class RecalculatePortionUseCase {
      */
     operator fun invoke(item: ScannedFoodItem, newGrams: Double): ScannedFoodItem {
         val sanitizedGrams = if (newGrams < 0.0 || newGrams.isNaN()) 0.0 else roundToDecimals(newGrams, 1)
-        return item.copy(servingGrams = sanitizedGrams)
+        val updatedHouseholdPortion = item.householdPortion?.let { hp ->
+            val ratio = if (hp.equivalentGrams > 0.0) sanitizedGrams / hp.equivalentGrams else 1.0
+            hp.copy(
+                quantity = roundToDecimals(hp.quantity * ratio, 2),
+                equivalentGrams = sanitizedGrams
+            )
+        }
+        return item.copy(
+            servingGrams = sanitizedGrams,
+            householdPortion = updatedHouseholdPortion
+        )
     }
 
     /**
@@ -27,10 +37,9 @@ class RecalculatePortionUseCase {
         itemId: String,
         newGrams: Double
     ): List<ScannedFoodItem> {
-        val sanitizedGrams = if (newGrams < 0.0 || newGrams.isNaN()) 0.0 else roundToDecimals(newGrams, 1)
         return items.map { item ->
             if (item.id == itemId) {
-                item.copy(servingGrams = sanitizedGrams)
+                invoke(item, newGrams)
             } else {
                 item
             }

@@ -26,6 +26,32 @@ class MiniMaxVisionAnalyzerTest {
     }
 
     @Test
+    fun testRequestSerialization() {
+        val request = com.calculadoracalorias.app.data.remote.dto.MiniMaxChatRequest(
+            model = "MiniMax-M3",
+            messages = listOf(
+                com.calculadoracalorias.app.data.remote.dto.MiniMaxMessage(
+                    role = "user",
+                    content = listOf(
+                        com.calculadoracalorias.app.data.remote.dto.MiniMaxTextPart("Hola"),
+                        com.calculadoracalorias.app.data.remote.dto.MiniMaxImageUrlPart(
+                            com.calculadoracalorias.app.data.remote.dto.MiniMaxImageUrl("data:image/jpeg;base64,...")
+                        )
+                    )
+                )
+            ),
+            temperature = 0.1f
+        )
+        val jsonWithoutEncodeDefaults = kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+        val encoded = jsonWithoutEncodeDefaults.encodeToString(com.calculadoracalorias.app.data.remote.dto.MiniMaxChatRequest.serializer(), request)
+        println("ENCODED JSON WITHOUT ENCODE_DEFAULTS: $encoded")
+        assertTrue(encoded.contains("\"model\""), "Debe contener el campo model pero fue: $encoded")
+    }
+
+    @Test
     @DisplayName("Debe deserializar correctamente un JSON estructurado de MiniMax")
     fun testParseMealDtoStrictJson() {
         val jsonPayload = """
@@ -91,6 +117,55 @@ class MiniMaxVisionAnalyzerTest {
         assertEquals("Once / Cena", dto.suggestedMealCategory)
         assertEquals(1, dto.detectedItems.size)
         assertEquals("Marraqueta con palta", dto.detectedItems[0].name)
+    }
+
+    @Test
+    @DisplayName("Debe limpiar y omitir bloques de pensamiento <think>...</think> de modelos de razonamiento como MiniMax-M3")
+    fun testParseMealDtoWithThinkingTags() {
+        val thinkingPayload = """
+            <think>
+            El usuario nos envía la foto de un desayuno chileno típico.
+            Veo una taza con líquido negro, probablemente café negro o té negro.
+            También una porción de marraqueta tostada con palta hass molida.
+            Procedo a estructurar el JSON según el formato requerido.
+            </think>
+            ```json
+            {
+              "suggested_meal_category": "Desayuno",
+              "detected_items": [
+                {
+                  "name": "Café negro",
+                  "serving_grams": 200.0,
+                  "calories_per_100g": 2.0,
+                  "protein_per_100g": 0.1,
+                  "carbs_per_100g": 0.2,
+                  "fat_per_100g": 0.0,
+                  "confidence": 0.98,
+                  "household_unit": "taza",
+                  "household_quantity": 1.0
+                },
+                {
+                  "name": "Marraqueta con palta",
+                  "serving_grams": 130.0,
+                  "calories_per_100g": 210.0,
+                  "protein_per_100g": 5.5,
+                  "carbs_per_100g": 29.0,
+                  "fat_per_100g": 8.5,
+                  "confidence": 0.95,
+                  "household_unit": "unidad",
+                  "household_quantity": 1.0
+                }
+              ]
+            }
+            ```
+        """.trimIndent()
+
+        val dto = analyzer.parseMealDto(thinkingPayload)
+
+        assertEquals("Desayuno", dto.suggestedMealCategory)
+        assertEquals(2, dto.detectedItems.size)
+        assertEquals("Café negro", dto.detectedItems[0].name)
+        assertEquals("Marraqueta con palta", dto.detectedItems[1].name)
     }
 
     @Test

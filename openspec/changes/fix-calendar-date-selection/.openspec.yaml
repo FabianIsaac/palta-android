@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-09"
+name: fix-calendar-date-selection
+description: Corrección de la selección interactiva de días en el diálogo del calendario mensual de hábitos y sincronización de fecha entre el resumen diario y estadísticas.

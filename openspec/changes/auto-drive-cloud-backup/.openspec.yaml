@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: auto-drive-cloud-backup
+description: Respaldo automático periódico en Google Drive mediante carpeta persistente (SAF OpenDocumentTree) y Android WorkManager en segundo plano, protegiendo los datos ante pérdida o cambio de dispositivo.

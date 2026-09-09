@@ -5,5 +5,8 @@ package com.calculadoracalorias.app.domain.model
  */
 enum class VisionSource {
     LOCAL_DEVICE,
-    MINIMAX_CLOUD
+    MINIMAX_CLOUD,
+    NVIDIA_NIM,
+    GOOGLE_GEMINI,
+    CUSTOM_CLOUD
 }

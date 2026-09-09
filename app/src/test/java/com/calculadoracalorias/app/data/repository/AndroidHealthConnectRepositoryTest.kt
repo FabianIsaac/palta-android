@@ -11,8 +11,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -105,6 +103,55 @@ class AndroidHealthConnectRepositoryTest {
             healthConnectClient.insertRecords(match { records ->
                 records.size == 1 && records.first() is NutritionRecord
             })
+        }
+    }
+
+    @Test
+    @DisplayName("Debe actualizar NutritionRecord en Health Connect")
+    fun testUpdateNutritionRecordSuccess() = runBlocking {
+        coEvery {
+            healthConnectClient.updateRecords(any())
+        } returns Unit
+
+        val result = repository.updateNutritionRecord(
+            recordId = "hc-update-uuid-101",
+            mealName = "Desayuno modificado",
+            mealCategory = MealCategory.DESAYUNO,
+            timestamp = 1700000000000L,
+            calories = 350.0,
+            proteinGrams = 12.0,
+            carbsGrams = 40.0,
+            fatGrams = 10.0
+        )
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            healthConnectClient.updateRecords(match { records ->
+                records.size == 1 && records.first().metadata.id == "hc-update-uuid-101"
+            })
+        }
+    }
+
+    @Test
+    @DisplayName("Debe eliminar NutritionRecord en Health Connect")
+    fun testDeleteNutritionRecordSuccess() = runBlocking {
+        coEvery {
+            healthConnectClient.deleteRecords(
+                recordType = NutritionRecord::class,
+                recordIdsList = listOf("hc-delete-uuid-202"),
+                clientRecordIdsList = emptyList()
+            )
+        } returns Unit
+
+        val result = repository.deleteNutritionRecord("hc-delete-uuid-202")
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            healthConnectClient.deleteRecords(
+                recordType = NutritionRecord::class,
+                recordIdsList = listOf("hc-delete-uuid-202"),
+                clientRecordIdsList = emptyList()
+            )
         }
     }
 

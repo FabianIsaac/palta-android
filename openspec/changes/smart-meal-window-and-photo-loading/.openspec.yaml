@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-07"
+name: smart-meal-window-and-photo-loading
+description: Pantalla de carga y feedback inmediato al tomar fotos con IA, reset estricto de estado en escaneo y ventana inteligente de 30 minutos para consolidar comidas en la misma categoría.

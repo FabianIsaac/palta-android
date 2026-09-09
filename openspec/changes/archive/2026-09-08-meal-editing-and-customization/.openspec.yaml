@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: meal-editing-and-customization
+description: Edición interactiva de nombres de alimentos detectados y capacidad de agregar ingredientes faltantes (mediante catálogo local chileno o entrada rápida) en comidas guardadas y en revisión.

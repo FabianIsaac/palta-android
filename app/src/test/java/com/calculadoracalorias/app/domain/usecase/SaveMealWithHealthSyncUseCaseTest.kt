@@ -1,6 +1,8 @@
 package com.calculadoracalorias.app.domain.usecase
 
 import com.calculadoracalorias.app.domain.model.MealCategory
+import com.calculadoracalorias.app.domain.model.MealEntry
+import com.calculadoracalorias.app.domain.model.NutritionSummary
 import com.calculadoracalorias.app.domain.model.ScannedFoodItem
 import com.calculadoracalorias.app.domain.repository.HealthConnectRepository
 import com.calculadoracalorias.app.domain.repository.MealRepository
@@ -46,6 +48,7 @@ class SaveMealWithHealthSyncUseCaseTest {
     @BeforeEach
     fun setUp() {
         useCase = SaveMealWithHealthSyncUseCase(mealRepository, healthConnectRepository)
+        coEvery { mealRepository.getMostRecentMealForCategory(any(), any(), any()) } returns Result.success(null)
     }
 
     @Test
@@ -168,5 +171,158 @@ class SaveMealWithHealthSyncUseCaseTest {
 
         assertTrue(result.isFailure)
         assertEquals("No se pueden registrar comidas sin alimentos.", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    @DisplayName("Debe consolidar alimentos en la comida existente si se registra dentro de la ventana de 30 minutos")
+    fun testSaveMealConsolidatesWhenWithin30Minutes() = runBlocking {
+        val initialTimestamp = 1700000000000L
+        val newTimestamp = initialTimestamp + (15 * 60 * 1000L)
+
+        val existingMeal = MealEntry(
+            id = 55L,
+            category = MealCategory.ALMUERZO,
+            timestamp = initialTimestamp,
+            items = sampleItems,
+            summary = NutritionSummary.fromItems(sampleItems),
+            healthConnectRecordId = "existing-hc-id"
+        )
+
+        val newItem = ScannedFoodItem(
+            id = "wantan-1",
+            name = "6 Wantanes fritos",
+            servingGrams = 120.0,
+            caloriesPer100g = 280.0,
+            proteinPer100g = 6.0,
+            carbsPer100g = 32.0,
+            fatPer100g = 14.0
+        )
+
+        coEvery {
+            mealRepository.getMostRecentMealForCategory(
+                category = MealCategory.ALMUERZO,
+                startTime = any(),
+                endTime = any()
+            )
+        } returns Result.success(existingMeal)
+
+        coEvery { healthConnectRepository.isHealthConnectAvailable() } returns true
+        coEvery { healthConnectRepository.hasWriteNutritionPermission() } returns true
+        coEvery {
+            healthConnectRepository.updateNutritionRecord(
+                recordId = "existing-hc-id",
+                mealName = any(),
+                mealCategory = MealCategory.ALMUERZO,
+                timestamp = initialTimestamp,
+                calories = any(),
+                proteinGrams = any(),
+                carbsGrams = any(),
+                fatGrams = any()
+            )
+        } returns Result.success(Unit)
+
+        coEvery {
+            mealRepository.updateMeal(
+                mealId = 55L,
+                category = MealCategory.ALMUERZO,
+                timestamp = initialTimestamp,
+                items = match { it.size == 3 && it.any { item -> item.id == "wantan-1" } },
+                healthConnectRecordId = "existing-hc-id"
+            )
+        } returns Result.success(Unit)
+
+        val result = useCase(
+            mealName = "Almuerzo",
+            category = MealCategory.ALMUERZO,
+            timestamp = newTimestamp,
+            items = listOf(newItem)
+        )
+
+        assertTrue(result.isSuccess)
+        val saveResult = result.getOrThrow()
+        assertEquals(55L, saveResult.mealId)
+        assertTrue(saveResult.isConsolidated)
+        assertTrue(saveResult.syncedWithHealthConnect)
+
+        coVerify(exactly = 1) {
+            mealRepository.updateMeal(
+                mealId = 55L,
+                category = MealCategory.ALMUERZO,
+                timestamp = initialTimestamp,
+                items = match { it.size == 3 && it.any { item -> item.id == "wantan-1" } },
+                healthConnectRecordId = "existing-hc-id"
+            )
+        }
+        coVerify(exactly = 0) {
+            mealRepository.saveMeal(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    @DisplayName("Debe crear un registro nuevo e independiente si transcurrieron más de 30 minutos")
+    fun testSaveMealCreatesNewEntryWhenMoreThan30Minutes() = runBlocking {
+        val initialTimestamp = 1700000000000L
+        val newTimestamp = initialTimestamp + (45 * 60 * 1000L)
+
+        val existingMeal = MealEntry(
+            id = 55L,
+            category = MealCategory.ALMUERZO,
+            timestamp = initialTimestamp,
+            items = sampleItems,
+            summary = NutritionSummary.fromItems(sampleItems),
+            healthConnectRecordId = "existing-hc-id"
+        )
+
+        val newItem = ScannedFoodItem(
+            id = "postre-1",
+            name = "Fruta picada",
+            servingGrams = 150.0,
+            caloriesPer100g = 50.0,
+            proteinPer100g = 0.5,
+            carbsPer100g = 12.0,
+            fatPer100g = 0.2
+        )
+
+        coEvery {
+            mealRepository.getMostRecentMealForCategory(
+                category = MealCategory.ALMUERZO,
+                startTime = any(),
+                endTime = any()
+            )
+        } returns Result.success(existingMeal)
+
+        coEvery { healthConnectRepository.isHealthConnectAvailable() } returns false
+        coEvery {
+            mealRepository.saveMeal(
+                category = MealCategory.ALMUERZO,
+                timestamp = newTimestamp,
+                items = listOf(newItem),
+                healthConnectRecordId = null
+            )
+        } returns Result.success(88L)
+
+        val result = useCase(
+            mealName = "Almuerzo",
+            category = MealCategory.ALMUERZO,
+            timestamp = newTimestamp,
+            items = listOf(newItem)
+        )
+
+        assertTrue(result.isSuccess)
+        val saveResult = result.getOrThrow()
+        assertEquals(88L, saveResult.mealId)
+        assertFalse(saveResult.isConsolidated)
+
+        coVerify(exactly = 1) {
+            mealRepository.saveMeal(
+                category = MealCategory.ALMUERZO,
+                timestamp = newTimestamp,
+                items = listOf(newItem),
+                healthConnectRecordId = null
+            )
+        }
+        coVerify(exactly = 0) {
+            mealRepository.updateMeal(any(), any(), any(), any(), any())
+        }
     }
 }

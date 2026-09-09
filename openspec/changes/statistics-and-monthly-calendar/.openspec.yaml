@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: statistics-and-monthly-calendar
+description: Pantalla completa de estadísticas con rangos configurables (7, 14, 30 días), gráfica de calorías con línea de objetivo, desglose de macronutrientes, adherencia de suplementos y diálogo/modal de calendario mensual para consultar hábitos y saltar directamente al diario.

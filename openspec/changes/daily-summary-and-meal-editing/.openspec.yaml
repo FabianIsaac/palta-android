@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-07"
+name: daily-summary-and-meal-editing
+description: Pantalla de resumen diario con desglose por comidas chilenas, edición de registros previos (ej. desayuno modificado en la cena) y sincronización reactiva en Room y Health Connect.

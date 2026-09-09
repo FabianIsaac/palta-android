@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: data-persistence-and-cloud-backup
+description: Persistencia de datos segura con eliminación de migraciones destructivas en Room y sistema de copia de seguridad / restauración compatible con Google Drive y almacenamiento local.

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: supplements-margin-and-settings-feedback
+description: Corrección del margen inferior en la pantalla de suplementos para evitar solapamiento con la barra de navegación y adición de feedback visual y snackbar/toast al guardar las configuraciones.

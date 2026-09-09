@@ -18,7 +18,8 @@ data class ScannedFoodItem(
     val proteinPer100g: Double,
     val carbsPer100g: Double,
     val fatPer100g: Double,
-    val confidence: Float = 1.0f
+    val confidence: Float = 1.0f,
+    val householdPortion: HouseholdPortion? = null
 ) {
     val totalCalories: Double
         get() = roundToDecimals((caloriesPer100g * servingGrams) / 100.0, 1)

@@ -5,6 +5,40 @@
     <string name="title_food_camera">Escanear Comida</string>
     <string name="title_review_meal">Revisa tu comida</string>
     <string name="title_settings">Configuración</string>
+    <string name="title_daily_summary">Resumen Diario</string>
+    <string name="title_edit_meal">Editar comida</string>
+    <string name="title_statistics">Estadísticas</string>
+    <string name="title_supplements">Mis Suplementos</string>
+    <string name="nav_diary">Diario</string>
+    <string name="nav_statistics">Estadísticas</string>
+    <string name="nav_scan">Escanear</string>
+    <string name="nav_supplements">Suplementos</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="btn_back">Volver</string>
+
+    <!-- Resumen Diario -->
+    <string name="label_remaining_calories">Te quedan %1$.0f kcal</string>
+    <string name="label_exceeded_calories">Te pasaste por %1$.0f kcal</string>
+    <string name="label_consumed_calories">%1$.0f kcal consumidas</string>
+    <string name="label_target_calories">Meta: %1$.0f kcal</string>
+    <string name="label_today">Hoy</string>
+    <string name="btn_previous_day">Día anterior</string>
+    <string name="btn_next_day">Día siguiente</string>
+    <string name="empty_category_hint">No tienes alimentos registrados</string>
+    <string name="btn_add_to_category">Agregar</string>
+
+    <!-- Edición y Detalle de Comida -->
+    <string name="edit_meal_subtitle">Ajusta las porciones o elimina alimentos de este registro.</string>
+    <string name="btn_save_changes">Guardar cambios</string>
+    <string name="btn_delete_meal">Eliminar comida</string>
+    <string name="dialog_delete_meal_title">¿Quieres eliminar este registro?</string>
+    <string name="dialog_delete_meal_msg">Esta acción eliminará la comida y actualizará tus calorías diarias y Health Connect.</string>
+    <string name="btn_dialog_confirm_delete">Eliminar comida</string>
+    <string name="btn_dialog_cancel">Volver</string>
+    <string name="msg_meal_updated_success">¡Comida actualizada correctamente!</string>
+    <string name="msg_meal_deleted_success">Comida eliminada.</string>
+    <string name="deleting_meal_progress">Eliminando comida…</string>
+    <string name="updating_meal_progress">Guardando cambios…</string>
 
     <!-- Cámara y captura -->
     <string name="camera_instruction">Enfoca tu plato de comida para escanear</string>
@@ -35,18 +69,47 @@
     <string name="msg_meal_saved_success">¡Comida guardada exitosamente!</string>
     <string name="msg_meal_saved_and_synced">¡Comida guardada y sincronizada con Health Connect!</string>
 
+    <!-- Selector y fechas de comida -->
+    <string name="label_target_date">Fecha de la comida</string>
+    <string name="label_change_date">Cambiar fecha</string>
+    <string name="label_registering_for_date">Registrando para: %1$s</string>
+    <string name="label_yesterday">Ayer</string>
+    <string name="dialog_select_date_title">Selecciona la fecha</string>
+
     <!-- Health Connect Diálogo Explicativo -->
     <string name="health_connect_dialog_title">Sincroniza con Health Connect</string>
     <string name="health_connect_dialog_description">Conecta la aplicación con Google Health Connect para registrar automáticamente los nutrientes de tus comidas y mantener tus datos de salud al día en un solo lugar.</string>
     <string name="btn_connect_health">Conectar ahora</string>
     <string name="btn_remind_later">Ahora no</string>
 
-    <!-- Configuración IA y MiniMax -->
+    <!-- Configuración IA Multiproveedor -->
+    <string name="settings_ai_title">Motor de Inteligencia Artificial</string>
+    <string name="settings_ai_subtitle">Elige el proveedor para analizar fotos de platos y registrar comidas en lenguaje natural.</string>
     <string name="settings_ai_vision_title">Motor de Inteligencia Artificial Visual</string>
     <string name="settings_ai_engine_label">Selecciona el analizador de visión:</string>
     <string name="engine_local">Analizador local (Offline, en el dispositivo)</string>
-    <string name="engine_minimax">MiniMax Vision (Nube multimodal, mayor precisión)</string>
-    <string name="settings_minimax_api_key_label">Clave de API de MiniMax (API Key)</string>
+    <string name="engine_minimax">MiniMax Cloud</string>
+    <string name="ai_provider_nvidia">NVIDIA NIM (Recomendado / Gratis)</string>
+    <string name="ai_provider_nvidia_desc">Modelos Llama 3.2 Vision y Llama 3.3. Incluye 1.000 créditos gratis para desarrolladores.</string>
+    <string name="ai_provider_nvidia_help">Obtén tu clave gratis en build.nvidia.com</string>
+    <string name="ai_provider_gemini">Google Gemini (Gratis)</string>
+    <string name="ai_provider_gemini_desc">Modelo Gemini 1.5 Flash rápido y multimodal con cuota gratuita de Google AI Studio.</string>
+    <string name="ai_provider_gemini_help">Obtén tu clave gratis en aistudio.google.com</string>
+    <string name="ai_provider_minimax">MiniMax Cloud</string>
+    <string name="ai_provider_minimax_desc">Modelos MiniMax-M3 y MiniMax-Text-01.</string>
+    <string name="ai_provider_minimax_help">Obtén tu clave en api.minimaxi.chat</string>
+    <string name="ai_provider_custom">Personalizado (OpenAI-compatible)</string>
+    <string name="ai_provider_custom_desc">Servidores locales como Ollama, LM Studio o servicios compatibles como Groq y OpenRouter.</string>
+    <string name="ai_provider_local">Solo en el dispositivo (sin internet)</string>
+    <string name="ai_provider_local_desc">Clasificador local LiteRT. No requiere clave de API ni conexión a internet.</string>
+    <string name="settings_api_key_label">Clave de API</string>
+    <string name="settings_api_key_hint">Pega aquí tu clave de API</string>
+    <string name="settings_api_key_missing_warning">Ingresa tu clave de API para habilitar este proveedor de IA.</string>
+    <string name="settings_advanced_options_title">Parámetros avanzados del modelo</string>
+    <string name="settings_custom_endpoint_label">URL del Endpoint</string>
+    <string name="settings_custom_text_model_label">Nombre del modelo de texto</string>
+    <string name="settings_custom_vision_model_label">Nombre del modelo de visión</string>
+    <string name="settings_minimax_api_key_label">Clave de API</string>
     <string name="settings_minimax_api_key_hint">Ingresa tu clave de API</string>
     <string name="settings_health_connect_toggle">Sincronización automática con Health Connect</string>
     <string name="btn_save_settings">Guardar configuración</string>
@@ -57,5 +120,146 @@
     <string name="error_image_processing">Ocurrió un problema al procesar la imagen. Por favor intenta nuevamente.</string>
     <string name="empty_items_hint">Agrega al menos un alimento para poder guardar tu comida.</string>
     <string name="loading_analyzing_image">Analizando tu plato con Inteligencia Artificial…</string>
+    <string name="loading_analyzing_image_subtitle">Identificando ingredientes y porciones estimadas para ti…</string>
+    <string name="loading_nutritional_tip_title">Tip saludable</string>
+    <string name="loading_nutritional_tip_body">Las legumbres como las lentejas y porotos aportan fibra y proteína de absorción lenta, ideales para mantener tu energía durante el día.</string>
     <string name="saving_meal_progress">Guardando tu comida…</string>
+
+    <!-- Consolidación inteligente de 30 minutos -->
+    <string name="consolidation_notice_title">Se sumará a tu %1$s de hace %2$d min</string>
+    <string name="consolidation_notice_subtitle">Los alimentos se agregarán a tu comida previa sin duplicar registros.</string>
+
+    <!-- Entrada de Lenguaje Natural con IA -->
+    <string name="title_describe_meal_ai">Describir comida con IA</string>
+    <string name="placeholder_describe_meal">Ej: Un café con leche, 1 azúcar y una marraqueta con palta…</string>
+    <string name="desc_natural_language_hint">Escribe o dicta lo que comiste o bebiste. La IA calculará los alimentos, porciones y calorías automáticamente.</string>
+    <string name="btn_interpret_ai">Interpretar con IA</string>
+    <string name="loading_interpreting_ai">Interpretando tu comida con IA…</string>
+    <string name="btn_describe_with_ai">Describir con IA</string>
+    <string name="badge_engine_cloud">☁️ IA en la nube</string>
+    <string name="badge_engine_local">📱 Modo local</string>
+    <string name="badge_pending_ai_refinement">Estimado local - Pendiente de IA</string>
+    <string name="title_error_ai_connection">No se pudo conectar con la IA</string>
+    <string name="desc_error_ai_draft">Conservamos intacta la descripción de tu comida:</string>
+    <string name="btn_retry_analysis">Reintentar</string>
+    <string name="btn_edit_text">Editar texto</string>
+    <string name="desc_pending_ai_notice">Calculado con el catálogo local. Se refinará automáticamente con IA cuando tengas internet.</string>
+
+    <!-- Configuración de Horarios de Comidas -->
+    <string name="settings_meal_windows_title">Horarios habituales de comida</string>
+    <string name="settings_meal_windows_subtitle">Personaliza tus horarios diarios. La app sugerirá automáticamente tu comida según la hora en que registres tus alimentos.</string>
+    <string name="btn_reset_meal_windows">Restablecer horarios estándar</string>
+    <string name="label_start_time">Inicio</string>
+    <string name="label_end_time">Fin</string>
+    <string name="dialog_select_time_title">Selecciona la hora</string>
+
+    <!-- Edición de Nombres y Adición de Ingredientes -->
+    <string name="edit_item_name_title">Editar nombre del alimento</string>
+    <string name="edit_item_name_label">Nombre del alimento</string>
+    <string name="edit_item_name_hint">Ej: Marraqueta tostada con palta</string>
+    <string name="edit_item_name_empty_error">Ingresa un nombre para el alimento</string>
+    <string name="btn_save">Guardar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_add_ingredient">Agregar ingrediente</string>
+    <string name="add_ingredient_title">Agregar ingrediente</string>
+    <string name="tab_catalog">Catálogo chileno</string>
+    <string name="tab_custom">Personalizado</string>
+    <string name="search_catalog_placeholder">Buscar alimento (ej: palta, marraqueta…)</string>
+    <string name="popular_ingredients_title">Alimentos frecuentes</string>
+    <string name="custom_food_name_label">Nombre del alimento</string>
+    <string name="custom_food_name_hint">Ej: Aceite de oliva, Mayonesa casera…</string>
+    <string name="custom_food_calories_label">Calorías por 100g (kcal)</string>
+    <string name="custom_food_protein_label">Proteínas por 100g (g)</string>
+    <string name="custom_food_carbs_label">Carbohidratos por 100g (g)</string>
+    <string name="custom_food_fat_label">Grasas por 100g (g)</string>
+    <string name="portion_grams_label">Porción a agregar (g)</string>
+    <string name="btn_add_to_meal">Agregar a la comida</string>
+    <string name="search_no_results">No encontramos alimentos que coincidan con tu búsqueda.</string>
+    <string name="action_edit_name">Editar nombre</string>
+
+    <!-- Metas Nutricionales y Suplementos -->
+    <string name="settings_daily_budget_title">Meta nutricional diaria</string>
+    <string name="settings_daily_budget_subtitle">Personaliza tus calorías y macronutrientes recomendados por tu nutricionista o plan deportivo.</string>
+    <string name="label_target_calories_input">Calorías objetivo (kcal)</string>
+    <string name="label_target_protein_input">Proteína (g)</string>
+    <string name="label_target_carbs_input">Carbohidratos (g)</string>
+    <string name="label_target_fat_input">Grasas (g)</string>
+    <string name="btn_auto_balance_macros">Equilibrar macros automáticamente</string>
+    <string name="hint_macro_calories_sum">Aporte calculado de los macros: %1$d kcal (%2$s)</string>
+    <string name="label_macros_match">Coincide con tu meta</string>
+    <string name="label_macros_diff">Diferencia: %+d kcal</string>
+
+    <!-- Suplementos Diarios -->
+    <string name="title_daily_supplements">Mis suplementos de hoy</string>
+    <string name="subtitle_daily_supplements">Complementa tu nutrición diaria</string>
+    <string name="label_supplement_taken">Tomado</string>
+
+    <!-- Rachas de Días Buenos -->
+    <string name="streak_title">Racha: %1$d días seguidos</string>
+    <string name="streak_title_single">Racha: 1 día</string>
+    <string name="streak_title_zero">¡Empieza tu racha hoy!</string>
+    <string name="streak_today_progress">Hoy:</string>
+    <string name="streak_prompt_missing">¡Te falta registrar %1$s para asegurar la racha de hoy!</string>
+    <string name="streak_completed_today">¡Completaste tus 3 comidas principales de hoy! 🔥</string>
+    <string name="streak_start_prompt">Registra Desayuno, Almuerzo y Once / Cena para sumar días buenos.</string>
+
+    <!-- Pantalla de Estadísticas -->
+    <string name="statistics_placeholder_title">Pronto: Estadísticas y Evolución</string>
+    <string name="statistics_placeholder_description">Estamos preparando gráficos de evolución calórica, balance de macronutrientes y adherencia semanal para acompañar tu progreso con la mejor experiencia.</string>
+
+    <!-- Pantalla de Gestión de Suplementos -->
+    <string name="supplements_suggestions_title">Sugerencias populares</string>
+    <string name="supplements_suggestions_subtitle">Toca para activar o desactivar en tu rutina</string>
+    <string name="supplements_add_title">Agregar suplemento personalizado</string>
+    <string name="supplements_add_subtitle">Ingresa el nombre y deja que la IA estime sus macros o complétalos a mano</string>
+    <string name="supplements_name_label">Nombre del suplemento</string>
+    <string name="supplements_name_placeholder">Ej. Creatina Creapure, Proteína Whey...</string>
+    <string name="supplements_dosage_label">Dosis habitual</string>
+    <string name="supplements_dosage_placeholder">Ej. 5g, 1 scoop (30g), 2 cápsulas...</string>
+    <string name="supplements_calories_label">Calorías (kcal)</string>
+    <string name="supplements_protein_label">Proteína (g)</string>
+    <string name="supplements_carbs_label">Carbohidratos (g)</string>
+    <string name="supplements_fat_label">Grasas (g)</string>
+    <string name="btn_estimate_with_ai">✨ Estimar macros con IA</string>
+    <string name="btn_estimating_with_ai">Estimando con IA…</string>
+    <string name="btn_save_supplement">Guardar suplemento</string>
+    <string name="supplements_active_routine_title">Tu rutina de suplementos</string>
+    <string name="supplements_active_routine_subtitle">Estos suplementos aparecerán en tu resumen diario</string>
+    <string name="supplements_empty_routine">Aún no tienes suplementos activados en tu rutina. Activa una sugerencia o agrega uno nuevo arriba.</string>
+    <string name="dialog_delete_supplement_title">¿Eliminar suplemento?</string>
+    <string name="dialog_delete_supplement_msg">¿Seguro que quieres eliminar este suplemento de tu catálogo?</string>
+    <string name="btn_delete_supplement_confirm">Eliminar</string>
+
+    <!-- Copia de Seguridad y Respaldo en la Nube -->
+    <string name="backup_section_title">Copia de Seguridad y Restauración</string>
+    <string name="backup_section_description">Guarda tus comidas, metas y suplementos en Google Drive o en tu teléfono para no perder nada al actualizar la app.</string>
+    <string name="backup_last_backup_format">Último respaldo: %1$s</string>
+    <string name="backup_none">Sin copias de seguridad registradas</string>
+    <string name="btn_create_backup">Crear copia de seguridad</string>
+    <string name="btn_restore_backup">Restaurar copia de seguridad</string>
+    <string name="backup_creating_progress">Creando copia de seguridad…</string>
+    <string name="backup_restoring_progress">Restaurando tus datos…</string>
+    <string name="msg_backup_export_success">Copia de seguridad guardada con éxito</string>
+    <string name="msg_backup_restore_success">Datos restaurados exitosamente</string>
+    <string name="error_backup_invalid_file">El archivo seleccionado no es una copia de seguridad válida</string>
+    <string name="dialog_restore_backup_title">¿Restaurar copia de seguridad?</string>
+    <string name="dialog_restore_backup_description">Este archivo contiene %1$d comidas, %2$d suplementos y tus metas nutricionales del %3$s.\n\n¿Deseas restaurar estos datos en tu aplicación?</string>
+    <string name="btn_dialog_confirm_restore">Restaurar datos</string>
+
+    <!-- Respaldo Automático en Google Drive -->
+    <string name="auto_backup_title">Respaldo automático en Google Drive</string>
+    <string name="auto_backup_switch_label">Sincronización automática diaria</string>
+    <string name="auto_backup_switch_desc">Guarda una copia silenciosa de tus datos todos los días cuando el teléfono tenga batería suficiente.</string>
+    <string name="auto_backup_folder_label">Carpeta:</string>
+    <string name="auto_backup_no_folder">Sin carpeta de Google Drive vinculada</string>
+    <string name="auto_backup_linked_folder_format">📁 %1$s</string>
+    <string name="auto_backup_last_sync_format">Último respaldo automático: %1$s</string>
+    <string name="auto_backup_last_sync_none">Aún no se ha ejecutado el primer respaldo automático</string>
+    <string name="btn_link_drive_folder">Vincular carpeta de Drive</string>
+    <string name="btn_change_drive_folder">Cambiar carpeta</string>
+    <string name="btn_unlink_drive_folder">Desvincular</string>
+    <string name="manual_backup_title">Acciones manuales</string>
+    <string name="manual_backup_last_format">Último respaldo manual: %1$s</string>
+    <string name="btn_export_backup_file">Exportar archivo</string>
+    <string name="btn_restore_backup_file">Restaurar</string>
 </resources>

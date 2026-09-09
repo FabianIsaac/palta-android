@@ -10,17 +10,24 @@ import com.calculadoracalorias.app.domain.repository.FoodVisionAnalyzer
  */
 class FoodVisionAnalyzerFactory(
     private val localAnalyzer: LocalLiteRtVisionAnalyzer,
-    private val miniMaxAnalyzer: MiniMaxVisionAnalyzer
+    private val cloudAnalyzer: FoodVisionAnalyzer
 ) {
+    // Constructor de conveniencia retrocompatible
+    constructor(
+        localAnalyzer: LocalLiteRtVisionAnalyzer,
+        miniMaxAnalyzer: MiniMaxVisionAnalyzer
+    ) : this(localAnalyzer, miniMaxAnalyzer as FoodVisionAnalyzer)
+
     fun getAnalyzer(
         preferredSource: VisionSource,
         isOnline: Boolean,
         hasApiKey: Boolean
     ): FoodVisionAnalyzer {
-        return if (preferredSource == VisionSource.MINIMAX_CLOUD && isOnline && hasApiKey) {
+        val isCloudPreferred = preferredSource != VisionSource.LOCAL_DEVICE
+        return if (isCloudPreferred && isOnline && hasApiKey) {
             // Se utiliza un analizador resiliente con fallback automático al analizador local si falla la red
             FallbackVisionAnalyzer(
-                primaryAnalyzer = miniMaxAnalyzer,
+                primaryAnalyzer = cloudAnalyzer,
                 fallbackAnalyzer = localAnalyzer
             )
         } else {
@@ -34,11 +41,20 @@ class FoodVisionAnalyzerFactory(
     ) : FoodVisionAnalyzer {
         override suspend fun analyzeImage(imageBytes: ByteArray): Result<DetectedMealResult> {
             val primaryResult = primaryAnalyzer.analyzeImage(imageBytes)
-            return if (primaryResult.isSuccess) {
-                primaryResult
+            if (primaryResult.isSuccess) {
+                return primaryResult
+            }
+
+            val primaryError = primaryResult.exceptionOrNull()
+            android.util.Log.w("FoodVision", "El analizador principal en la nube falló: ${primaryError?.message}", primaryError)
+
+            val fallbackResult = fallbackAnalyzer.analyzeImage(imageBytes)
+            return if (fallbackResult.isSuccess) {
+                fallbackResult
             } else {
-                // Degradación elegante al analizador local offline
-                fallbackAnalyzer.analyzeImage(imageBytes)
+                // Si ambos fallan, priorizar el mensaje de error del analizador en la nube
+                // para que el usuario conozca la causa real (clave inválida, cuota, error HTTP o timeout)
+                Result.failure(primaryError ?: fallbackResult.exceptionOrNull() ?: RuntimeException("No pudimos analizar la imagen."))
             }
         }
     }

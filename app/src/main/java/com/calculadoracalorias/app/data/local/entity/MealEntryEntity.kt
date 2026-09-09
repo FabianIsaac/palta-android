@@ -13,5 +13,7 @@ data class MealEntryEntity(
     val totalCalories: Double,
     val totalProtein: Double,
     val totalCarbs: Double,
-    val totalFat: Double
+    val totalFat: Double,
+    val rawDescription: String? = null,
+    val isPendingAiRefinement: Boolean = false
 )

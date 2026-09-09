@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-07"
+name: offline-resilient-meal-decomposition
+description: Descomposición atómica de ingredientes en lenguaje natural, retención de borradores ante errores y auto-reintento con catálogo offline.

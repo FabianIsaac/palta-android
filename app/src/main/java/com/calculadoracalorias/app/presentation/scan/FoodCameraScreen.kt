@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -12,8 +13,10 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview as CameraPreview
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,8 +26,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -58,16 +63,34 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.calculadoracalorias.app.R
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Surface
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodCameraScreen(
     onImageCaptured: (ByteArray) -> Unit,
+    isCloudAiActive: Boolean = false,
+    onAnalyzeTextDescription: ((String) -> Unit)? = null,
+    isAnalyzingText: Boolean = false,
     onNavigateToSettings: () -> Unit = {},
     onNavigateToManualEntry: () -> Unit = {},
     onNavigateBack: () -> Unit = {}
 ) {
+    BackHandler { onNavigateBack() }
+
+    var showTextEntrySheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -86,7 +109,10 @@ fun FoodCameraScreen(
         hasCameraPermission = isGranted
     }
 
+    var isCapturing by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
+        isCapturing = false
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -96,11 +122,15 @@ fun FoodCameraScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            isCapturing = true
             val bytes = context.contentResolver.openInputStream(it)?.use { stream ->
                 stream.readBytes()
             }
             if (bytes != null && bytes.isNotEmpty()) {
-                onImageCaptured(bytes)
+                val compressedBytes = compressAndResizeImage(bytes)
+                onImageCaptured(compressedBytes)
+            } else {
+                isCapturing = false
             }
         }
     }
@@ -150,34 +180,72 @@ fun FoodCameraScreen(
             }
         )
 
-        // Encabezado superior con título, instrucción y botones de acción
-        Row(
+        // Encabezado superior en 2 niveles (Navegación + Guía contextual)
+        Column(
             modifier = Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.55f))
-                .padding(top = 44.dp, bottom = 12.dp, start = 16.dp, end = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .background(Color.Black.copy(alpha = 0.60f))
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "🥑 Palta",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(id = R.string.camera_instruction),
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 13.sp
-                )
-            }
+            // Nivel 1: Fila de Navegación y Accesos
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Volver + Título + Insignia IA
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.btn_back),
+                            tint = Color.White
+                        )
+                    }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = "🥑 Palta",
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        color = if (isCloudAiActive) Color(0xFF1D4724).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.20f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isCloudAiActive) Color(0xFF8CE593).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Text(
+                            text = if (isCloudAiActive) stringResource(id = R.string.badge_engine_cloud) else stringResource(id = R.string.badge_engine_local),
+                            color = if (isCloudAiActive) Color(0xFFA8F7AF) else Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+
+                // Acción a la derecha (Registro manual)
                 IconButton(
                     onClick = onNavigateToManualEntry,
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
@@ -186,35 +254,70 @@ fun FoodCameraScreen(
                         tint = Color.White
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = stringResource(id = R.string.title_settings),
-                        tint = Color.White
-                    )
-                }
+            }
+
+            // Nivel 2: Subtítulo contextual centrado y no invasivo
+            Surface(
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .align(Alignment.CenterHorizontally),
+                color = Color.Black.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.camera_instruction),
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
             }
         }
 
-        // Barra inferior de controles
+        // Único botón de interacción para describir con IA (Píldora inferior destacada)
+        Button(
+            onClick = { showTextEntrySheet = true },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 110.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(id = R.string.btn_describe_with_ai),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp
+            )
+        }
+
+        // Barra inferior de controles de captura ergonómicos
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.65f))
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 32.dp, vertical = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Galería
             IconButton(
                 onClick = { galleryLauncher.launch("image/*") },
+                enabled = !isCapturing,
                 modifier = Modifier
                     .size(54.dp)
                     .background(Color.White.copy(alpha = 0.2f), CircleShape)
@@ -226,9 +329,11 @@ fun FoodCameraScreen(
                 )
             }
 
-            // Botón Capturar Foto
+            // Botón Capturar Foto (Obturador principal)
             IconButton(
                 onClick = {
+                    if (isCapturing) return@IconButton
+                    isCapturing = true
                     imageCapture.takePicture(
                         cameraExecutor,
                         object : ImageCapture.OnImageCapturedCallback() {
@@ -238,30 +343,46 @@ fun FoodCameraScreen(
                                 buffer.get(bytes)
                                 imageProxy.close()
 
+                                val compressedBytes = compressAndResizeImage(bytes)
                                 ContextCompat.getMainExecutor(context).execute {
-                                    onImageCaptured(bytes)
+                                    onImageCaptured(compressedBytes)
                                 }
                             }
 
                             override fun onError(exception: ImageCaptureException) {
                                 imageProxyError(exception)
+                                ContextCompat.getMainExecutor(context).execute {
+                                    isCapturing = false
+                                }
                             }
                         }
                     )
                 },
+                enabled = !isCapturing,
                 modifier = Modifier
                     .size(76.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .background(
+                        if (isCapturing) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary,
+                        CircleShape
+                    )
             ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = stringResource(id = R.string.btn_take_photo),
-                    tint = Color.White,
-                    modifier = Modifier.size(38.dp)
-                )
+                if (isCapturing) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(34.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = stringResource(id = R.string.btn_take_photo),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
             }
 
-            // Linterna
+            // Linterna / Flash
             IconButton(
                 onClick = {
                     cameraInstance?.let { cam ->
@@ -272,6 +393,7 @@ fun FoodCameraScreen(
                         }
                     }
                 },
+                enabled = !isCapturing,
                 modifier = Modifier
                     .size(54.dp)
                     .background(Color.White.copy(alpha = 0.2f), CircleShape)
@@ -283,6 +405,99 @@ fun FoodCameraScreen(
                 )
             }
         }
+
+        if (showTextEntrySheet) {
+            QuickNaturalLanguageEntrySheet(
+                isAnalyzing = isAnalyzingText,
+                onDismiss = { showTextEntrySheet = false },
+                onAnalyzeDescription = { description ->
+                    onAnalyzeTextDescription?.invoke(description)
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Optimiza y redimensiona la imagen capturada o importada para análisis con IA de visión.
+ * Reduce la dimensión máxima a 1024px respetando la orientación EXIF y comprime en JPEG de alta eficiencia.
+ */
+private fun compressAndResizeImage(
+    imageBytes: ByteArray,
+    maxDimension: Int = 1024,
+    quality: Int = 85
+): ByteArray {
+    return try {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+        val origWidth = options.outWidth
+        val origHeight = options.outHeight
+        if (origWidth <= 0 || origHeight <= 0) return imageBytes
+
+        var inSampleSize = 1
+        var w = origWidth
+        var h = origHeight
+        while (w > maxDimension * 2 || h > maxDimension * 2) {
+            w /= 2
+            h /= 2
+            inSampleSize *= 2
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply {
+            this.inSampleSize = inSampleSize
+        }
+        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, decodeOptions) ?: return imageBytes
+
+        // Orientación EXIF
+        val rotationDegrees = try {
+            val exif = ExifInterface(ByteArrayInputStream(imageBytes))
+            when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } catch (_: Exception) {
+            0f
+        }
+
+        val orientedBitmap = if (rotationDegrees != 0f) {
+            val matrix = Matrix().apply { postRotate(rotationDegrees) }
+            val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            if (rotated != bitmap) bitmap.recycle()
+            rotated
+        } else {
+            bitmap
+        }
+
+        val curW = orientedBitmap.width
+        val curH = orientedBitmap.height
+        val scaledBitmap = if (curW > maxDimension || curH > maxDimension) {
+            val ratio = curW.toFloat() / curH.toFloat()
+            val targetW: Int
+            val targetH: Int
+            if (ratio > 1f) {
+                targetW = maxDimension
+                targetH = (maxDimension / ratio).toInt().coerceAtLeast(1)
+            } else {
+                targetH = maxDimension
+                targetW = (maxDimension * ratio).toInt().coerceAtLeast(1)
+            }
+            val scaled = Bitmap.createScaledBitmap(orientedBitmap, targetW, targetH, true)
+            if (scaled != orientedBitmap) orientedBitmap.recycle()
+            scaled
+        } else {
+            orientedBitmap
+        }
+
+        val outputStream = ByteArrayOutputStream()
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+        scaledBitmap.recycle()
+        outputStream.toByteArray()
+    } catch (e: Exception) {
+        imageBytes
     }
 }
 
@@ -308,5 +523,17 @@ private fun CameraPermissionFallback(onRequestPermission: () -> Unit) {
         Button(onClick = onRequestPermission) {
             Text(text = stringResource(id = R.string.btn_grant_permission))
         }
+    }
+}
+
+// -------------------------------------------------------------
+// Compose Previews (Requisito 4 & Tarea 3.5)
+// -------------------------------------------------------------
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Permiso de Cámara Requerido", showBackground = true)
+@Composable
+private fun PreviewCameraPermissionFallback() {
+    com.calculadoracalorias.app.presentation.theme.CalculadoraCaloriasTheme {
+        CameraPermissionFallback(onRequestPermission = {})
     }
 }

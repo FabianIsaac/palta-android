@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-08"
+name: meal-date-selection-and-editing
+description: Propagación de fecha activa desde el diario hacia el registro de comidas, visualización y ajuste de fecha en la pantalla de revisión, y edición de fecha en comidas existentes.

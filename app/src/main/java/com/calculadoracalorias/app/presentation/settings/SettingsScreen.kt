@@ -1,5 +1,6 @@
 package com.calculadoracalorias.app.presentation.settings
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +31,9 @@ import com.calculadoracalorias.app.domain.model.AiProvider
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +73,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import com.calculadoracalorias.app.domain.model.AiCallLogEntry
+import com.calculadoracalorias.app.domain.model.AiTechnicalDetails
+import com.calculadoracalorias.app.presentation.settings.components.AiDiagnosticSection
 import com.calculadoracalorias.app.presentation.settings.components.BackupAndRestoreSection
 import com.calculadoracalorias.app.presentation.settings.components.RestoreBackupConfirmationDialog
 import java.time.LocalDate
@@ -146,11 +152,38 @@ fun SettingsScreen(
     userMessage: String? = null,
     errorMessage: String? = null,
     onClearUserMessage: () -> Unit = {},
-    onClearErrorMessage: () -> Unit = {}
+    onClearErrorMessage: () -> Unit = {},
+    currentHealthActivitySyncEnabled: Boolean = true,
+    currentIncludeBurnedCaloriesInBudget: Boolean = false,
+    currentHealthWeightSyncEnabled: Boolean = true,
+    latestHealthWeightKg: Double? = null,
+    latestHealthWeightTimestamp: Long? = null,
+    isSyncingWeight: Boolean = false,
+    onToggleHealthActivitySync: (Boolean) -> Unit = {},
+    onToggleIncludeBurnedCalories: (Boolean) -> Unit = {},
+    onToggleHealthWeightSync: (Boolean) -> Unit = {},
+    onSyncWeightFromHealthConnect: () -> Unit = {},
+    isTestingAiConnection: Boolean = false,
+    aiConnectionTestResult: AiTechnicalDetails? = null,
+    aiConnectionTestError: String? = null,
+    aiCallLogs: List<AiCallLogEntry> = emptyList(),
+    onTestAiConnectivity: () -> Unit = {},
+    onClearAiLogs: () -> Unit = {},
+    onDismissAiConnectionTestResult: () -> Unit = {}
 ) {
     BackHandler { onNavigateBack() }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    var isHealthActivitySyncEnabled by remember(currentHealthActivitySyncEnabled) {
+        mutableStateOf(currentHealthActivitySyncEnabled)
+    }
+    var includeBurnedCaloriesInBudget by remember(currentIncludeBurnedCaloriesInBudget) {
+        mutableStateOf(currentIncludeBurnedCaloriesInBudget)
+    }
+    var isHealthWeightSyncEnabled by remember(currentHealthWeightSyncEnabled) {
+        mutableStateOf(currentHealthWeightSyncEnabled)
+    }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -814,6 +847,17 @@ fun SettingsScreen(
                 }
             }
 
+            // Tarjeta de Diagnóstico y Conexión de IA
+            AiDiagnosticSection(
+                isTestingAiConnection = isTestingAiConnection,
+                connectionTestResult = aiConnectionTestResult,
+                connectionTestError = aiConnectionTestError,
+                callLogs = aiCallLogs,
+                onTestConnection = onTestAiConnectivity,
+                onClearLogs = onClearAiLogs,
+                onDismissTestResult = onDismissAiConnectionTestResult
+            )
+
             // Sección de Google Health Connect
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -879,18 +923,157 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(id = R.string.settings_health_connect_toggle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (hasHealthConnectPermission) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_health_connect_toggle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (hasHealthConnectPermission) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Exporta automáticamente las comidas registradas a Health Connect.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Spacer(modifier = Modifier.width(16.dp))
                         Switch(
                             checked = isHealthSyncEnabled,
                             onCheckedChange = { isHealthSyncEnabled = it }
                         )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    // Sub-sección: Actividad física y pasos
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Sincronizar actividad y pasos",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (hasHealthConnectPermission) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Lee pasos y calorías quemadas activas desde tu reloj o podómetro.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(
+                            checked = isHealthActivitySyncEnabled,
+                            onCheckedChange = {
+                                isHealthActivitySyncEnabled = it
+                                onToggleHealthActivitySync(it)
+                            }
+                        )
+                    }
+
+                    if (isHealthActivitySyncEnabled) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Sumar calorías quemadas al presupuesto",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (hasHealthConnectPermission) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Si lo activas, el ejercicio aumentará tus calorías disponibles. Recomendado apagar si tu meta es perder peso de forma estricta.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Switch(
+                                checked = includeBurnedCaloriesInBudget,
+                                onCheckedChange = {
+                                    includeBurnedCaloriesInBudget = it
+                                    onToggleIncludeBurnedCalories(it)
+                                }
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    // Sub-sección: Balanza Inteligente y Peso
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Balanza inteligente (Peso corporal)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasHealthConnectPermission) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Lee el último pesaje registrado por balanzas inteligentes (Withings, Xiaomi, etc.) en Health Connect.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (latestHealthWeightKg != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "⚖️", fontSize = 16.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Último pesaje detectado: $latestHealthWeightKg kg",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = onSyncWeightFromHealthConnect,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSyncingWeight
+                        ) {
+                            if (isSyncingWeight) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Consultando pesaje...")
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sincronizar peso con Health Connect")
+                            }
+                        }
                     }
                 }
             }
@@ -1082,6 +1265,22 @@ private fun PreviewSettingsScreenLocal() {
         SettingsScreen(
             currentAiProvider = AiProvider.LOCAL,
             currentHealthSyncEnabled = true
+        )
+    }
+}
+
+@Preview(name = "Configuración - Health Connect y Balanza (Tema Claro)", showBackground = true)
+@Preview(name = "Configuración - Health Connect y Balanza (Tema Oscuro)", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun PreviewSettingsScreenHealthConnect() {
+    CalculadoraCaloriasTheme {
+        SettingsScreen(
+            currentHealthSyncEnabled = true,
+            hasHealthConnectPermission = true,
+            currentHealthActivitySyncEnabled = true,
+            currentIncludeBurnedCaloriesInBudget = true,
+            currentHealthWeightSyncEnabled = true,
+            latestHealthWeightKg = 74.5
         )
     }
 }

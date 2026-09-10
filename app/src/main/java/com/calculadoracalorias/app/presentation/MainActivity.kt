@@ -74,6 +74,7 @@ import com.calculadoracalorias.app.domain.usecase.backup.ExportBackupUseCase
 import com.calculadoracalorias.app.domain.usecase.backup.ImportBackupUseCase
 import com.calculadoracalorias.app.presentation.settings.SettingsViewModel
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.launch
@@ -117,6 +118,11 @@ class MainActivity : ComponentActivity() {
                     encodeDefaults = true
                 })
             }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 60_000
+                socketTimeoutMillis = 60_000
+                connectTimeoutMillis = 30_000
+            }
         }
 
         val cloudVisionAnalyzer = com.calculadoracalorias.app.data.vision.OpenAiCompatibleVisionAnalyzer(
@@ -154,11 +160,16 @@ class MainActivity : ComponentActivity() {
         val calculateDailyStreakUseCase = com.calculadoracalorias.app.domain.usecase.CalculateDailyStreakUseCase(
             mealRepository = mealRepository
         )
+        val getDailyHealthActivityUseCase = com.calculadoracalorias.app.domain.usecase.GetDailyHealthActivityUseCase(
+            healthConnectRepository = healthConnectRepository
+        )
 
         val dailySummaryViewModel = DailySummaryViewModel(
             getDailyMealSummaryUseCase = getDailyMealSummaryUseCase,
             calculateDailyStreakUseCase = calculateDailyStreakUseCase,
             supplementRepository = supplementRepository,
+            getDailyHealthActivityUseCase = getDailyHealthActivityUseCase,
+            userPreferencesRepository = userPreferencesRepository,
             refinePendingMealsUseCase = refinePendingMealsUseCase
         )
 
@@ -237,6 +248,9 @@ class MainActivity : ComponentActivity() {
         )
         val exportBackupUseCase = ExportBackupUseCase(backupRepository)
         val importBackupUseCase = ImportBackupUseCase(backupRepository)
+        val getLatestHealthWeightUseCase = com.calculadoracalorias.app.domain.usecase.GetLatestHealthWeightUseCase(
+            healthConnectRepository = healthConnectRepository
+        )
         val settingsViewModel = SettingsViewModel(
             userPreferencesRepository = userPreferencesRepository,
             exportBackupUseCase = exportBackupUseCase,
@@ -251,7 +265,9 @@ class MainActivity : ComponentActivity() {
                 val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 contentResolver.releasePersistableUriPermission(uri, flags)
             },
-            autoBackupScheduler = autoBackupScheduler
+            autoBackupScheduler = autoBackupScheduler,
+            getLatestHealthWeightUseCase = getLatestHealthWeightUseCase,
+            mealAnalyzer = naturalLanguageMealAnalyzer
         )
 
         setContent {
@@ -306,17 +322,40 @@ fun AppNavigation(
 
     var isHealthAvailable by remember { mutableStateOf(false) }
     var hasHealthPermission by remember { mutableStateOf(false) }
+    var hasActivityPermission by remember { mutableStateOf(false) }
+    var hasWeightPermission by remember { mutableStateOf(false) }
+
+    val allHealthPermissions = healthConnectRepository.requiredPermissions +
+            healthConnectRepository.activityPermissions +
+            healthConnectRepository.weightPermissions
 
     val healthPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         hasHealthPermission = granted.containsAll(healthConnectRepository.requiredPermissions)
+        hasActivityPermission = granted.containsAll(healthConnectRepository.activityPermissions)
+        hasWeightPermission = granted.containsAll(healthConnectRepository.weightPermissions)
+        settingsViewModel.updateHealthConnectAvailability(
+            isAvailable = isHealthAvailable,
+            hasPermission = hasHealthPermission,
+            hasActivityPermissions = hasActivityPermission,
+            hasWeightPermission = hasWeightPermission
+        )
+        dailySummaryViewModel.onEvent(DailySummaryEvent.OnRefreshActivity)
     }
 
     LaunchedEffect(Unit) {
         isHealthAvailable = healthConnectRepository.isHealthConnectAvailable()
         if (isHealthAvailable) {
             hasHealthPermission = healthConnectRepository.hasWriteNutritionPermission()
+            hasActivityPermission = healthConnectRepository.hasActivityPermissions()
+            hasWeightPermission = healthConnectRepository.hasWeightPermission()
+            settingsViewModel.updateHealthConnectAvailability(
+                isAvailable = isHealthAvailable,
+                hasPermission = hasHealthPermission,
+                hasActivityPermissions = hasActivityPermission,
+                hasWeightPermission = hasWeightPermission
+            )
         }
     }
 
@@ -471,8 +510,18 @@ fun AppNavigation(
                         isHealthConnectAvailable = isHealthAvailable,
                         hasHealthConnectPermission = hasHealthPermission,
                         onRequestHealthConnectPermission = {
-                            healthPermissionLauncher.launch(healthConnectRepository.requiredPermissions)
+                            healthPermissionLauncher.launch(allHealthPermissions)
                         },
+                        currentHealthActivitySyncEnabled = settingsUiState.healthConnectActivitySyncEnabled,
+                        currentIncludeBurnedCaloriesInBudget = settingsUiState.includeBurnedCaloriesInBudget,
+                        currentHealthWeightSyncEnabled = settingsUiState.healthConnectWeightSyncEnabled,
+                        latestHealthWeightKg = settingsUiState.latestHealthWeightKg,
+                        latestHealthWeightTimestamp = settingsUiState.latestHealthWeightTimestamp,
+                        isSyncingWeight = settingsUiState.isSyncingWeight,
+                        onToggleHealthActivitySync = settingsViewModel::onToggleHealthConnectActivitySync,
+                        onToggleIncludeBurnedCalories = settingsViewModel::onToggleIncludeBurnedCalories,
+                        onToggleHealthWeightSync = settingsViewModel::onToggleHealthConnectWeightSync,
+                        onSyncWeightFromHealthConnect = settingsViewModel::onSyncWeightFromHealthConnect,
                         onSelectAiProvider = settingsViewModel::onSelectAiProvider,
                         onSaveApiKeyForProvider = settingsViewModel::onSaveApiKeyForProvider,
                         onSaveCustomAiParameters = settingsViewModel::onSaveCustomAiParameters,
@@ -502,7 +551,14 @@ fun AppNavigation(
                         userMessage = settingsUiState.userMessage,
                         errorMessage = settingsUiState.errorMessage,
                         onClearUserMessage = settingsViewModel::clearUserMessage,
-                        onClearErrorMessage = settingsViewModel::clearErrorMessage
+                        onClearErrorMessage = settingsViewModel::clearErrorMessage,
+                        isTestingAiConnection = settingsUiState.isTestingAiConnection,
+                        aiConnectionTestResult = settingsUiState.aiConnectionTestResult,
+                        aiConnectionTestError = settingsUiState.aiConnectionTestError,
+                        aiCallLogs = settingsUiState.aiCallLogs,
+                        onTestAiConnectivity = settingsViewModel::testAiConnectivity,
+                        onClearAiLogs = settingsViewModel::clearAiLogs,
+                        onDismissAiConnectionTestResult = settingsViewModel::dismissAiConnectionTestResult
                     )
                 }
             }

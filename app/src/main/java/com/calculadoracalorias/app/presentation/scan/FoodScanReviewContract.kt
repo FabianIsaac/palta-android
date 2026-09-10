@@ -1,8 +1,8 @@
 package com.calculadoracalorias.app.presentation.scan
 
+import com.calculadoracalorias.app.domain.model.AiTechnicalDetails
 import com.calculadoracalorias.app.domain.model.MealCategory
 import com.calculadoracalorias.app.domain.model.ScannedFoodItem
-
 import java.time.LocalDate
 
 /**
@@ -45,5 +45,6 @@ data class FoodScanReviewUiState(
     val consolidateTargetMealMinutesAgo: Int? = null,
     val lastRawDescription: String? = null,
     val isPendingAiRefinement: Boolean = false,
-    val canRetryTextAnalysis: Boolean = false
+    val canRetryTextAnalysis: Boolean = false,
+    val lastTechnicalError: AiTechnicalDetails? = null
 )

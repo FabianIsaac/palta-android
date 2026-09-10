@@ -3,14 +3,23 @@ package com.calculadoracalorias.app.data.repository
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Mass
+import com.calculadoracalorias.app.domain.model.DailyHealthActivity
+import com.calculadoracalorias.app.domain.model.HealthWeightRecord
 import com.calculadoracalorias.app.domain.model.MealCategory
 import com.calculadoracalorias.app.domain.repository.HealthConnectRepository
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 class AndroidHealthConnectRepository(
@@ -27,6 +36,15 @@ class AndroidHealthConnectRepository(
 
     val requiredPermissions: Set<String> = setOf(
         HealthPermission.getWritePermission(NutritionRecord::class)
+    )
+
+    val activityPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class)
+    )
+
+    val weightPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(WeightRecord::class)
     )
 
     override suspend fun isHealthConnectAvailable(): Boolean {
@@ -143,6 +161,78 @@ class AndroidHealthConnectRepository(
                 clientRecordIdsList = emptyList()
             )
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun hasActivityPermissions(): Boolean {
+        val client = healthConnectClientProvider() ?: return false
+        val granted = client.permissionController.getGrantedPermissions()
+        return granted.containsAll(activityPermissions)
+    }
+
+    override suspend fun hasWeightPermission(): Boolean {
+        val client = healthConnectClientProvider() ?: return false
+        val granted = client.permissionController.getGrantedPermissions()
+        return granted.containsAll(weightPermissions)
+    }
+
+    override suspend fun getDailyActivity(date: LocalDate): Result<DailyHealthActivity> {
+        val client = healthConnectClientProvider()
+            ?: return Result.failure(IllegalStateException("Health Connect no está disponible en este dispositivo."))
+
+        return try {
+            val zoneId = ZoneId.systemDefault()
+            val startTime = date.atStartOfDay(zoneId).toInstant()
+            val endTime = date.plusDays(1).atStartOfDay(zoneId).toInstant()
+
+            val response = client.aggregate(
+                AggregateRequest(
+                    metrics = setOf(
+                        ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                        StepsRecord.COUNT_TOTAL
+                    ),
+                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
+                )
+            )
+
+            val burnedCalories = response[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0
+            val stepsCount = response[StepsRecord.COUNT_TOTAL] ?: 0L
+
+            Result.success(
+                DailyHealthActivity(
+                    date = date,
+                    burnedCalories = burnedCalories,
+                    stepsCount = stepsCount
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getLatestWeight(): Result<HealthWeightRecord?> {
+        val client = healthConnectClientProvider()
+            ?: return Result.failure(IllegalStateException("Health Connect no está disponible en este dispositivo."))
+
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = WeightRecord::class,
+                timeRangeFilter = TimeRangeFilter.before(Instant.now()),
+                ascendingOrder = false,
+                pageSize = 1
+            )
+            val response = client.readRecords(request)
+            val latestRecord = response.records.firstOrNull()
+
+            val result = latestRecord?.let {
+                HealthWeightRecord(
+                    weightKg = it.weight.inKilograms,
+                    recordedAt = it.time
+                )
+            }
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -241,4 +241,78 @@ class DailySummaryViewModelTest {
         assertNotNull(state.errorMessage)
         assertEquals("Fallo en la base de datos", state.errorMessage)
     }
+
+    @Test
+    @DisplayName("Debe reflejar las calorías quemadas y pasos desde el caso de uso de actividad")
+    fun testHealthActivityReflectedInUiState() = runTest(testDispatcher) {
+        val healthUseCase: com.calculadoracalorias.app.domain.usecase.GetDailyHealthActivityUseCase = mockk()
+        val prefsRepo: com.calculadoracalorias.app.data.preferences.UserPreferencesRepository = mockk()
+        val prefs = com.calculadoracalorias.app.data.preferences.UserPreferences(
+            healthConnectActivitySyncEnabled = true,
+            includeBurnedCaloriesInBudget = true
+        )
+        val activity = com.calculadoracalorias.app.domain.model.DailyHealthActivity(
+            date = initialDate,
+            burnedCalories = 350.0,
+            stepsCount = 8200L
+        )
+
+        every { prefsRepo.userPreferencesFlow } returns flowOf(prefs)
+        coEvery { healthUseCase(initialDate, true) } returns activity
+
+        val customViewModel = DailySummaryViewModel(
+            getDailyMealSummaryUseCase = getDailyMealSummaryUseCase,
+            calculateDailyStreakUseCase = calculateDailyStreakUseCase,
+            supplementRepository = supplementRepository,
+            getDailyHealthActivityUseCase = healthUseCase,
+            userPreferencesRepository = prefsRepo,
+            initialDate = initialDate
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = customViewModel.uiState.value
+        assertEquals(350.0, state.burnedCalories)
+        assertEquals(8200L, state.stepsCount)
+        assertTrue(state.includeBurnedInBudget)
+        // target (2000) - consumed (500) + burned (350) = 1850
+        assertEquals(1850.0, state.remainingCalories)
+    }
+
+    @Test
+    @DisplayName("No debe sumar calorías quemadas al presupuesto si includeBurnedInBudget es falso")
+    fun testBurnedCaloriesNotAddedWhenDisabled() = runTest(testDispatcher) {
+        val healthUseCase: com.calculadoracalorias.app.domain.usecase.GetDailyHealthActivityUseCase = mockk()
+        val prefsRepo: com.calculadoracalorias.app.data.preferences.UserPreferencesRepository = mockk()
+        val prefs = com.calculadoracalorias.app.data.preferences.UserPreferences(
+            healthConnectActivitySyncEnabled = true,
+            includeBurnedCaloriesInBudget = false
+        )
+        val activity = com.calculadoracalorias.app.domain.model.DailyHealthActivity(
+            date = initialDate,
+            burnedCalories = 400.0,
+            stepsCount = 9000L
+        )
+
+        every { prefsRepo.userPreferencesFlow } returns flowOf(prefs)
+        coEvery { healthUseCase(initialDate, true) } returns activity
+
+        val customViewModel = DailySummaryViewModel(
+            getDailyMealSummaryUseCase = getDailyMealSummaryUseCase,
+            calculateDailyStreakUseCase = calculateDailyStreakUseCase,
+            supplementRepository = supplementRepository,
+            getDailyHealthActivityUseCase = healthUseCase,
+            userPreferencesRepository = prefsRepo,
+            initialDate = initialDate
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = customViewModel.uiState.value
+        assertEquals(400.0, state.burnedCalories)
+        assertEquals(9000L, state.stepsCount)
+        assertFalse(state.includeBurnedInBudget)
+        // target (2000) - consumed (500) = 1500 (sin sumar los 400 quemados)
+        assertEquals(1500.0, state.remainingCalories)
+    }
 }

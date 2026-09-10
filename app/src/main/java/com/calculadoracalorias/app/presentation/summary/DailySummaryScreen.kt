@@ -139,6 +139,18 @@ fun DailySummaryScreen(
                 CalorieMacroOverviewCard(uiState = uiState)
             }
 
+            // 3.1 Actividad física y pasos (Health Connect)
+            if (uiState.isActivitySyncEnabled) {
+                item {
+                    DailyActivityCard(
+                        burnedCalories = uiState.burnedCalories,
+                        stepsCount = uiState.stepsCount,
+                        includeBurnedInBudget = uiState.includeBurnedInBudget,
+                        onRefresh = { onEvent(DailySummaryEvent.OnRefreshActivity) }
+                    )
+                }
+            }
+
             // 4. Tarjetas de categorías chilenas
             items(MealCategory.entries.toList(), key = { it.name }) { category ->
                 val meals = uiState.mealsByCategory[category].orEmpty()

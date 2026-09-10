@@ -31,6 +31,11 @@ data class UserPreferences(
     val customTextModel: String = "",
     val customVisionModel: String = "",
     val healthConnectSyncEnabled: Boolean = true,
+    val healthConnectActivitySyncEnabled: Boolean = true,
+    val includeBurnedCaloriesInBudget: Boolean = false,
+    val healthConnectWeightSyncEnabled: Boolean = true,
+    val lastSyncedWeightKg: Double? = null,
+    val lastSyncedWeightTimestamp: Long? = null,
     val targetCalories: Double = 2000.0,
     val targetProteinGrams: Double = 150.0,
     val targetCarbsGrams: Double = 200.0,
@@ -79,6 +84,11 @@ class UserPreferencesRepository(
         val CUSTOM_TEXT_MODEL = stringPreferencesKey("custom_text_model")
         val CUSTOM_VISION_MODEL = stringPreferencesKey("custom_vision_model")
         val HEALTH_CONNECT_SYNC_ENABLED = booleanPreferencesKey("health_connect_sync_enabled")
+        val HEALTH_CONNECT_ACTIVITY_SYNC_ENABLED = booleanPreferencesKey("health_connect_activity_sync_enabled")
+        val INCLUDE_BURNED_CALORIES_IN_BUDGET = booleanPreferencesKey("include_burned_calories_in_budget")
+        val HEALTH_CONNECT_WEIGHT_SYNC_ENABLED = booleanPreferencesKey("health_connect_weight_sync_enabled")
+        val LAST_SYNCED_WEIGHT_KG = doublePreferencesKey("last_synced_weight_kg")
+        val LAST_SYNCED_WEIGHT_TIMESTAMP = longPreferencesKey("last_synced_weight_timestamp")
         val TARGET_CALORIES = doublePreferencesKey("target_calories")
         val TARGET_PROTEIN = doublePreferencesKey("target_protein_grams")
         val TARGET_CARBS = doublePreferencesKey("target_carbs_grams")
@@ -132,6 +142,11 @@ class UserPreferencesRepository(
         val customVision = preferences[PreferencesKeys.CUSTOM_VISION_MODEL] ?: ""
 
         val syncEnabled = preferences[PreferencesKeys.HEALTH_CONNECT_SYNC_ENABLED] ?: true
+        val activitySyncEnabled = preferences[PreferencesKeys.HEALTH_CONNECT_ACTIVITY_SYNC_ENABLED] ?: true
+        val includeBurnedInBudget = preferences[PreferencesKeys.INCLUDE_BURNED_CALORIES_IN_BUDGET] ?: false
+        val weightSyncEnabled = preferences[PreferencesKeys.HEALTH_CONNECT_WEIGHT_SYNC_ENABLED] ?: true
+        val lastWeightKg = preferences[PreferencesKeys.LAST_SYNCED_WEIGHT_KG]
+        val lastWeightTimestamp = preferences[PreferencesKeys.LAST_SYNCED_WEIGHT_TIMESTAMP]
         val calories = preferences[PreferencesKeys.TARGET_CALORIES] ?: 2000.0
         val protein = preferences[PreferencesKeys.TARGET_PROTEIN] ?: 150.0
         val carbs = preferences[PreferencesKeys.TARGET_CARBS] ?: 200.0
@@ -171,6 +186,11 @@ class UserPreferencesRepository(
             customTextModel = customText,
             customVisionModel = customVision,
             healthConnectSyncEnabled = syncEnabled,
+            healthConnectActivitySyncEnabled = activitySyncEnabled,
+            includeBurnedCaloriesInBudget = includeBurnedInBudget,
+            healthConnectWeightSyncEnabled = weightSyncEnabled,
+            lastSyncedWeightKg = lastWeightKg,
+            lastSyncedWeightTimestamp = lastWeightTimestamp,
             targetCalories = calories,
             targetProteinGrams = protein,
             targetCarbsGrams = carbs,
@@ -255,6 +275,31 @@ class UserPreferencesRepository(
     suspend fun setHealthConnectSyncEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.HEALTH_CONNECT_SYNC_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setHealthConnectActivitySyncEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HEALTH_CONNECT_ACTIVITY_SYNC_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setIncludeBurnedCaloriesInBudget(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.INCLUDE_BURNED_CALORIES_IN_BUDGET] = enabled
+        }
+    }
+
+    suspend fun setHealthConnectWeightSyncEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HEALTH_CONNECT_WEIGHT_SYNC_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setLastSyncedWeight(weightKg: Double, timestamp: Long) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LAST_SYNCED_WEIGHT_KG] = weightKg
+            preferences[PreferencesKeys.LAST_SYNCED_WEIGHT_TIMESTAMP] = timestamp
         }
     }
 

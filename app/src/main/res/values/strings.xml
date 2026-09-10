@@ -96,7 +96,7 @@
     <string name="ai_provider_gemini_desc">Modelo Gemini 1.5 Flash rápido y multimodal con cuota gratuita de Google AI Studio.</string>
     <string name="ai_provider_gemini_help">Obtén tu clave gratis en aistudio.google.com</string>
     <string name="ai_provider_minimax">MiniMax Cloud</string>
-    <string name="ai_provider_minimax_desc">Modelos MiniMax-M3 y MiniMax-Text-01.</string>
+    <string name="ai_provider_minimax_desc">Modelos MiniMax-M3 y MiniMax-M2.7 de alta velocidad.</string>
     <string name="ai_provider_minimax_help">Obtén tu clave en api.minimaxi.chat</string>
     <string name="ai_provider_custom">Personalizado (OpenAI-compatible)</string>
     <string name="ai_provider_custom_desc">Servidores locales como Ollama, LM Studio o servicios compatibles como Groq y OpenRouter.</string>

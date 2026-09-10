@@ -3,15 +3,24 @@ package com.calculadoracalorias.app.data.repository
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.aggregate.AggregationResult
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.response.InsertRecordsResponse
+import androidx.health.connect.client.response.ReadRecordsResponse
+import androidx.health.connect.client.units.Energy
+import androidx.health.connect.client.units.Mass
 import com.calculadoracalorias.app.domain.model.MealCategory
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import java.time.Instant
+import java.time.LocalDate
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -175,5 +184,80 @@ class AndroidHealthConnectRepositoryTest {
 
         assertTrue(result.isFailure)
         assertEquals("Health Connect no está disponible en este dispositivo.", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    @DisplayName("Debe verificar correctamente los permisos de actividad física")
+    fun testHasActivityPermissions() = runBlocking {
+        val activePerm = HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)
+        val stepsPerm = HealthPermission.getReadPermission(StepsRecord::class)
+
+        coEvery { permissionController.getGrantedPermissions() } returns setOf(activePerm, stepsPerm)
+        assertTrue(repository.hasActivityPermissions())
+
+        coEvery { permissionController.getGrantedPermissions() } returns setOf(activePerm)
+        assertFalse(repository.hasActivityPermissions())
+    }
+
+    @Test
+    @DisplayName("Debe verificar correctamente el permiso de lectura de peso")
+    fun testHasWeightPermission() = runBlocking {
+        val weightPerm = HealthPermission.getReadPermission(WeightRecord::class)
+
+        coEvery { permissionController.getGrantedPermissions() } returns setOf(weightPerm)
+        assertTrue(repository.hasWeightPermission())
+
+        coEvery { permissionController.getGrantedPermissions() } returns emptySet()
+        assertFalse(repository.hasWeightPermission())
+    }
+
+    @Test
+    @DisplayName("Debe obtener la actividad diaria agregando calorías y pasos exitosamente")
+    fun testGetDailyActivitySuccess() = runBlocking {
+        val aggregationResult = mockk<AggregationResult>(relaxed = true)
+        every { aggregationResult[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL] } returns Energy.kilocalories(420.0)
+        every { aggregationResult[StepsRecord.COUNT_TOTAL] } returns 7500L
+        coEvery { healthConnectClient.aggregate(any()) } returns aggregationResult
+
+        val testDate = LocalDate.of(2026, 9, 9)
+        val result = repository.getDailyActivity(testDate)
+
+        assertTrue(result.isSuccess)
+        val activity = result.getOrNull()
+        assertEquals(testDate, activity?.date)
+        assertEquals(420.0, activity?.burnedCalories)
+        assertEquals(7500L, activity?.stepsCount)
+    }
+
+    @Test
+    @DisplayName("Debe obtener el peso más reciente correctamente")
+    fun testGetLatestWeightSuccess() = runBlocking {
+        val now = Instant.now()
+        val weightRecord = mockk<WeightRecord>(relaxed = true)
+        every { weightRecord.weight } returns Mass.kilograms(73.5)
+        every { weightRecord.time } returns now
+
+        val response = mockk<ReadRecordsResponse<WeightRecord>>(relaxed = true)
+        every { response.records } returns listOf(weightRecord)
+        coEvery { healthConnectClient.readRecords(any<androidx.health.connect.client.request.ReadRecordsRequest<WeightRecord>>()) } returns response
+
+        val result = repository.getLatestWeight()
+
+        assertTrue(result.isSuccess)
+        assertEquals(73.5, result.getOrNull()?.weightKg)
+        assertEquals(now, result.getOrNull()?.recordedAt)
+    }
+
+    @Test
+    @DisplayName("Debe retornar null cuando no existen registros de peso en Health Connect")
+    fun testGetLatestWeightEmpty() = runBlocking {
+        val response = mockk<ReadRecordsResponse<WeightRecord>>(relaxed = true)
+        every { response.records } returns emptyList()
+        coEvery { healthConnectClient.readRecords(any<androidx.health.connect.client.request.ReadRecordsRequest<WeightRecord>>()) } returns response
+
+        val result = repository.getLatestWeight()
+
+        assertTrue(result.isSuccess)
+        org.junit.jupiter.api.Assertions.assertNull(result.getOrNull())
     }
 }

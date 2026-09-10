@@ -502,4 +502,45 @@ class FoodScanReviewViewModelTest {
         viewModel.onEvent(FoodScanReviewEvent.OnTargetDateChanged(target))
         assertEquals(target, viewModel.uiState.value.targetDate)
     }
+
+    @Test
+    @DisplayName("Debe exponer lastTechnicalError cuando ocurre un fallback local con error técnico previo")
+    fun testLocalFallbackPreservesLastTechnicalError() = runTest(testDispatcher) {
+        val parseUseCase: com.calculadoracalorias.app.domain.usecase.ParseNaturalLanguageMealUseCase = mockk()
+        val viewModelWithNL = FoodScanReviewViewModel(
+            recalculatePortionUseCase = recalculatePortionUseCase,
+            saveMealWithHealthSyncUseCase = saveMealWithHealthSyncUseCase,
+            parseNaturalLanguageMealUseCase = parseUseCase
+        )
+
+        val technicalDetails = com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+            provider = com.calculadoracalorias.app.domain.model.AiProvider.NVIDIA_NIM,
+            model = "meta/llama-3.3-70b-instruct",
+            endpointUrl = "https://integrate.api.nvidia.com/v1/chat/completions",
+            httpStatus = 429,
+            errorBody = "{\"error\": \"Quota exceeded\"}",
+            durationMs = 120
+        )
+
+        val localResult = DetectedMealResult(
+            items = listOf(itemPollo),
+            suggestedMealType = MealCategory.ALMUERZO,
+            analysisSource = VisionSource.LOCAL_DEVICE,
+            technicalError = technicalDetails
+        )
+
+        val input = "pechuga de pollo"
+        coEvery { parseUseCase(input) } returns Result.success(localResult)
+
+        viewModelWithNL.onEvent(FoodScanReviewEvent.OnAnalyzeNaturalLanguage(input))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModelWithNL.uiState.value
+        assertTrue(state.isPendingAiRefinement)
+        assertTrue(state.canRetryTextAnalysis)
+        assertNotNull(state.lastTechnicalError)
+        assertEquals(com.calculadoracalorias.app.domain.model.AiProvider.NVIDIA_NIM, state.lastTechnicalError?.provider)
+        assertEquals(429, state.lastTechnicalError?.httpStatus)
+        assertEquals("{\"error\": \"Quota exceeded\"}", state.lastTechnicalError?.errorBody)
+    }
 }

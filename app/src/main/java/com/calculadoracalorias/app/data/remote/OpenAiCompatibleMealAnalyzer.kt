@@ -5,8 +5,12 @@ import com.calculadoracalorias.app.data.remote.dto.OpenAiChatResponse
 import com.calculadoracalorias.app.data.remote.dto.OpenAiDetectedMealDto
 import com.calculadoracalorias.app.data.remote.dto.OpenAiMessage
 import com.calculadoracalorias.app.data.remote.dto.OpenAiTextPart
+import com.calculadoracalorias.app.domain.model.AiCallLogEntry
+import com.calculadoracalorias.app.domain.model.AiCallType
 import com.calculadoracalorias.app.domain.model.AiConfiguration
 import com.calculadoracalorias.app.domain.model.AiProvider
+import com.calculadoracalorias.app.domain.model.AiServiceException
+import com.calculadoracalorias.app.domain.model.AiTechnicalDetails
 import com.calculadoracalorias.app.domain.model.DetectedMealResult
 import com.calculadoracalorias.app.domain.model.HouseholdPortion
 import com.calculadoracalorias.app.domain.model.HouseholdUnit
@@ -35,7 +39,8 @@ import java.util.UUID
 open class OpenAiCompatibleMealAnalyzer(
     private val configProvider: () -> AiConfiguration,
     private val httpClient: HttpClient,
-    private val catalogRepository: FoodCatalogRepository? = null
+    private val catalogRepository: FoodCatalogRepository? = null,
+    private val debugLogManager: AiDebugLogManager = AiDebugLogManager
 ) : NaturalLanguageMealAnalyzer {
 
     // Constructor de conveniencia para compatibilidad con llamadas directas
@@ -44,7 +49,7 @@ open class OpenAiCompatibleMealAnalyzer(
         httpClient: HttpClient,
         catalogRepository: FoodCatalogRepository? = null,
         endpointUrl: String = "https://api.minimaxi.chat/v1/chat/completions",
-        model: String = "MiniMax-Text-01"
+        model: String = "MiniMax-M2.7-highspeed"
     ) : this(
         configProvider = {
             AiConfiguration(
@@ -85,7 +90,10 @@ open class OpenAiCompatibleMealAnalyzer(
         if (catalogRepository != null) {
             val localResult = analyzeWithLocalCatalog(trimmed)
             if (localResult.isSuccess) {
-                return localResult
+                val technicalError = (remoteError as? AiServiceException)?.technicalDetails
+                return Result.success(
+                    localResult.getOrThrow().copy(technicalError = technicalError)
+                )
             }
         }
 
@@ -99,29 +107,37 @@ open class OpenAiCompatibleMealAnalyzer(
     }
 
     private suspend fun analyzeWithCloudLlm(description: String, config: AiConfiguration): Result<DetectedMealResult> {
+        val startTime = System.currentTimeMillis()
         return try {
             val systemPrompt = """
                 Eres un asistente nutricional experto adaptado a Chile.
-                El usuario describirá lo que comió o bebió en lenguaje cotidiano chileno (ej: "un café con leche y una marraqueta con palta", "dos huevos revueltos", "2 fajitas con carne molida, choclo y lechuga").
+                El usuario describirá lo que comió o bebió en lenguaje cotidiano chileno (ej: "un café con leche y una marraqueta con palta", "dos huevos revueltos", "2 fajitas con carne molida, choclo y lechuga", "marraqueta con ave mayo").
 
                 REGLAS ESTRICTAS DE DESCOMPOSICIÓN DE INGREDIENTES:
-                1. DESCOMPOSICIÓN DE PLATOS COMPUESTOS O ARMADOS:
+                1. REGLA OBLIGATORIA PARA PASTAS, RELLENOS Y MEZCLAS CON SALSAS:
+                   - Si el usuario menciona una preparación compuesta o pasta donde se mezcla una proteína o vegetal con una salsa o aderezo calórico (ej: ave mayo, atún mayo, huevo con mayo, papas mayo, sándwiches con salsa, ensaladas con aliño pesado):
+                     a) NUNCA combines la salsa con la proteína o base en un solo ítem.
+                     b) NUNCA omitas la salsa: la mayonesa y los aderezos grasos aportan alta densidad calórica (~680 kcal/100g).
+                     c) DEBES generar SIEMPRE dos o más ítems independientes en detected_items:
+                        * La proteína o base: ej. "Pechuga de pollo cocida desmenuzada" (~60g - 80g) o "Atún al agua" o "Huevo cocido picado".
+                        * La salsa o grasa: ej. "Mayonesa" (~15g - 25g, 1 a 2 cucharadas soperas, ~680 kcal/100g, 75g grasa).
+                2. DESCOMPOSICIÓN DE PLATOS COMPUESTOS O ARMADOS:
                    - Si el usuario menciona una preparación armada detallando sus componentes (ej: fajitas, tacos, sándwiches, ensaladas, bowls, burritos), NUNCA crees un solo ítem genérico combinado.
                    - DEBES generar un ítem independiente en detected_items para:
                      a) La base del plato (ej: "Tortillas de fajita", "Pan marraqueta", "Masa de taco").
-                     b) CADA proteína, vegetal, relleno, salsa o aderezo nombrado explícitamente (ej: "Carne molida", "Choclo", "Tomate picado", "Lechuga", "Yogurt griego", "Tajín").
-                2. ESTIMACIÓN COHERENTE DE PORCIONES:
+                     b) CADA proteína, vegetal, relleno, salsa o aderezo nombrado explícitamente (ej: "Carne molida", "Choclo", "Tomate picado", "Lechuga", "Yogurt griego", "Tajín", "Mayonesa").
+                3. ESTIMACIÓN COHERENTE DE PORCIONES:
                    - Si el usuario indica cantidad para el conjunto (ej. "2 fajitas con..."), reparte porciones realistas que correspondan a esa cantidad total:
                      * Base: 2 unidades de tortilla (~80g en total, 40g c/u).
                      * Proteína: Porción típica de relleno (~100g de carne molida o pollo).
                      * Vegetales: ~30g a 50g por vegetal mencionado.
-                     * Salsas/aderezos: ~30g a 50g (ej. 2 cucharadas de yogurt griego).
+                     * Salsas/aderezos: ~30g a 50g (ej. 2 cucharadas de yogurt griego o mayonesa).
                      * Condimentos: ~2g a 5g (ej. 1 cucharadita de tajín).
-                3. PLATOS TÍPICOS CERRADOS SIN INGREDIENTES DETALLADOS:
+                4. PLATOS TÍPICOS CERRADOS SIN INGREDIENTES DETALLADOS:
                    - Si el usuario solo nombra un plato tradicional sin detallar ingredientes (ej: "una cazuela de ave", "un plato de porotos con riendas"), manténlo como un solo ítem consolidado.
-                4. BEBIDAS E INFUSIONES:
+                5. BEBIDAS E INFUSIONES:
                    - Si es una infusión simple sin azúcar (café negro, té), las calorías son insignificantes (~2 kcal). Si tiene azúcar (1 cdta ~ 5g, 20 kcal) o endulzante, regístrala como ítem separado.
-                5. CATEGORÍA:
+                6. CATEGORÍA:
                    - Sugerir la categoría de comida chilena más apropiada: "Desayuno", "Almuerzo", "Once / Cena", o "Colaciones".
 
                 Responde EXCLUSIVAMENTE con un JSON válido con la siguiente estructura (sin texto adicional ni comillas invertidas de código):
@@ -177,23 +193,257 @@ open class OpenAiCompatibleMealAnalyzer(
                 setBody(request)
             }
 
+            val duration = System.currentTimeMillis() - startTime
+            val statusCode = httpResponse.status.value
+
             if (!httpResponse.status.isSuccess()) {
                 val errorBody = try { httpResponse.body<String>() } catch (_: Exception) { "Error de red" }
+                val technicalDetails = AiTechnicalDetails(
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    httpStatus = statusCode,
+                    errorBody = errorBody,
+                    durationMs = duration
+                )
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.MEAL_TEXT,
+                        provider = config.provider,
+                        model = config.effectiveTextModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = description,
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = false,
+                        rawResponse = errorBody,
+                        errorMessage = "HTTP $statusCode: $errorBody"
+                    )
+                )
+                logError("Fallo en llamada a IA (${config.provider.displayName}, HTTP $statusCode): $errorBody")
                 return Result.failure(
-                    RuntimeException("Error al consultar el proveedor de IA (${config.provider.displayName}, HTTP ${httpResponse.status.value}): $errorBody")
+                    AiServiceException(
+                        "Error al consultar el proveedor de IA (${config.provider.displayName}, HTTP $statusCode): $errorBody",
+                        technicalDetails
+                    )
                 )
             }
 
             val chatResponse = httpResponse.body<OpenAiChatResponse>()
             val rawContent = chatResponse.choices.firstOrNull()?.message?.content
-                ?: return Result.failure(RuntimeException("La respuesta de la IA no contiene opciones de respuesta."))
+            if (rawContent == null) {
+                val technicalDetails = AiTechnicalDetails(
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    httpStatus = statusCode,
+                    errorBody = "Respuesta vacía o sin elecciones",
+                    durationMs = duration
+                )
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.MEAL_TEXT,
+                        provider = config.provider,
+                        model = config.effectiveTextModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = description,
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = false,
+                        errorMessage = "La respuesta de la IA no contiene opciones de respuesta."
+                    )
+                )
+                logError("Respuesta de IA sin contenido (${config.provider.displayName})")
+                return Result.failure(
+                    AiServiceException("La respuesta de la IA no contiene opciones de respuesta.", technicalDetails)
+                )
+            }
 
             val mealDto = parseMealDto(rawContent)
             val detectedResult = mapDtoToResult(mealDto, config.provider.toVisionSource())
 
+            debugLogManager.log(
+                AiCallLogEntry(
+                    callType = AiCallType.MEAL_TEXT,
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    promptSummary = description,
+                    httpStatus = statusCode,
+                    durationMs = duration,
+                    isSuccess = true,
+                    rawResponse = rawContent
+                )
+            )
+            logInfo("Llamada a IA exitosa (${config.provider.displayName} / ${config.effectiveTextModel}) en ${duration}ms")
+
             Result.success(detectedResult)
         } catch (e: Exception) {
-            Result.failure(e)
+            val duration = System.currentTimeMillis() - startTime
+            val technicalDetails = AiTechnicalDetails(
+                provider = config.provider,
+                model = config.effectiveTextModel,
+                endpointUrl = config.effectiveEndpointUrl,
+                httpStatus = null,
+                errorBody = null,
+                exceptionMessage = e.message ?: e.toString(),
+                durationMs = duration
+            )
+            debugLogManager.log(
+                AiCallLogEntry(
+                    callType = AiCallType.MEAL_TEXT,
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    promptSummary = description,
+                    httpStatus = null,
+                    durationMs = duration,
+                    isSuccess = false,
+                    errorMessage = e.message ?: e.toString()
+                )
+            )
+            logError("Excepción al consultar IA (${config.provider.displayName}): ${e.message}", e)
+            Result.failure(
+                AiServiceException(
+                    "Error de conexión con la IA (${config.provider.displayName}): ${e.message}",
+                    technicalDetails,
+                    e
+                )
+            )
+        }
+    }
+
+    open suspend fun testConnectivity(configOverride: AiConfiguration? = null): Result<AiTechnicalDetails> {
+        val config = configOverride ?: configProvider()
+        if (!config.provider.isCloud) {
+            val details = AiTechnicalDetails(
+                provider = config.provider,
+                model = "On-Device",
+                endpointUrl = "local",
+                httpStatus = 200,
+                durationMs = 0L,
+                errorBody = null
+            )
+            return Result.success(details)
+        }
+
+        if (config.apiKey.isBlank()) {
+            val details = AiTechnicalDetails(
+                provider = config.provider,
+                model = config.effectiveTextModel,
+                endpointUrl = config.effectiveEndpointUrl,
+                httpStatus = null,
+                errorBody = "Clave de API no configurada",
+                exceptionMessage = "Ingresa tu clave de API en Ajustes para probar la conexión.",
+                durationMs = 0L
+            )
+            return Result.failure(
+                AiServiceException("Ingresa tu clave de API en Ajustes para probar la conexión.", details)
+            )
+        }
+
+        val startTime = System.currentTimeMillis()
+        return try {
+            val request = OpenAiChatRequest(
+                model = config.effectiveTextModel,
+                messages = listOf(
+                    OpenAiMessage(
+                        role = "user",
+                        content = listOf(OpenAiTextPart("ping"))
+                    )
+                ),
+                temperature = 0.0f
+            )
+
+            val httpResponse = httpClient.post(config.effectiveEndpointUrl) {
+                header(HttpHeaders.Authorization, "Bearer ${config.apiKey}")
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+            val duration = System.currentTimeMillis() - startTime
+            val statusCode = httpResponse.status.value
+            val rawBody = try { httpResponse.body<String>() } catch (_: Exception) { "" }
+
+            if (httpResponse.status.isSuccess()) {
+                val details = AiTechnicalDetails(
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    httpStatus = statusCode,
+                    durationMs = duration
+                )
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.CONNECTIVITY_TEST,
+                        provider = config.provider,
+                        model = config.effectiveTextModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = "Prueba de conectividad (Ping)",
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = true,
+                        rawResponse = rawBody
+                    )
+                )
+                logInfo("Prueba de conectividad exitosa (${config.provider.displayName}): HTTP $statusCode en ${duration}ms")
+                Result.success(details)
+            } else {
+                val details = AiTechnicalDetails(
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    httpStatus = statusCode,
+                    errorBody = rawBody,
+                    durationMs = duration
+                )
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.CONNECTIVITY_TEST,
+                        provider = config.provider,
+                        model = config.effectiveTextModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = "Prueba de conectividad (Ping)",
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = false,
+                        rawResponse = rawBody,
+                        errorMessage = "HTTP $statusCode: $rawBody"
+                    )
+                )
+                logError("Prueba de conectividad fallida (${config.provider.displayName}): HTTP $statusCode - $rawBody")
+                Result.failure(
+                    AiServiceException("Error HTTP $statusCode al conectar con ${config.provider.displayName}", details)
+                )
+            }
+        } catch (e: Exception) {
+            val duration = System.currentTimeMillis() - startTime
+            val details = AiTechnicalDetails(
+                provider = config.provider,
+                model = config.effectiveTextModel,
+                endpointUrl = config.effectiveEndpointUrl,
+                httpStatus = null,
+                errorBody = null,
+                exceptionMessage = e.message ?: e.toString(),
+                durationMs = duration
+            )
+            debugLogManager.log(
+                AiCallLogEntry(
+                    callType = AiCallType.CONNECTIVITY_TEST,
+                    provider = config.provider,
+                    model = config.effectiveTextModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    promptSummary = "Prueba de conectividad (Ping)",
+                    httpStatus = null,
+                    durationMs = duration,
+                    isSuccess = false,
+                    errorMessage = e.message ?: e.toString()
+                )
+            )
+            logError("Excepción en prueba de conectividad (${config.provider.displayName}): ${e.message}", e)
+            Result.failure(
+                AiServiceException("No se pudo establecer conexión: ${e.message}", details, e)
+            )
         }
     }
 
@@ -344,5 +594,25 @@ open class OpenAiCompatibleMealAnalyzer(
                 analysisSource = VisionSource.LOCAL_DEVICE
             )
         )
+    }
+
+    companion object {
+        private const val TAG = "AiMealAnalyzer"
+
+        private fun logInfo(message: String) {
+            try {
+                android.util.Log.i(TAG, message)
+            } catch (_: Throwable) {
+                println("[$TAG] $message")
+            }
+        }
+
+        private fun logError(message: String, throwable: Throwable? = null) {
+            try {
+                android.util.Log.e(TAG, message, throwable)
+            } catch (_: Throwable) {
+                System.err.println("[$TAG] $message: ${throwable?.message}")
+            }
+        }
     }
 }

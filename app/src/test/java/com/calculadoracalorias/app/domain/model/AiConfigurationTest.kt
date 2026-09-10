@@ -33,7 +33,7 @@ class AiConfigurationTest {
         val config = AiConfiguration(provider = AiProvider.MINIMAX, apiKey = "mm-key")
 
         assertEquals("https://api.minimaxi.chat/v1/chat/completions", config.effectiveEndpointUrl)
-        assertEquals("MiniMax-Text-01", config.effectiveTextModel)
+        assertEquals("MiniMax-M2.7-highspeed", config.effectiveTextModel)
         assertEquals("MiniMax-M3", config.effectiveVisionModel)
         assertTrue(config.provider.isCloud)
     }

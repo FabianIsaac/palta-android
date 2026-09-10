@@ -24,7 +24,8 @@ class FoodScanReviewViewModel(
     private val saveMealWithHealthSyncUseCase: SaveMealWithHealthSyncUseCase,
     private val parseNaturalLanguageMealUseCase: com.calculadoracalorias.app.domain.usecase.ParseNaturalLanguageMealUseCase? = null,
     private val mealRepository: com.calculadoracalorias.app.domain.repository.MealRepository? = null,
-    private val analyzeFoodImageUseCase: com.calculadoracalorias.app.domain.usecase.AnalyzeFoodImageUseCase? = null
+    private val analyzeFoodImageUseCase: com.calculadoracalorias.app.domain.usecase.AnalyzeFoodImageUseCase? = null,
+    private val debugLogManager: com.calculadoracalorias.app.data.remote.AiDebugLogManager = com.calculadoracalorias.app.data.remote.AiDebugLogManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FoodScanReviewUiState())
@@ -211,7 +212,8 @@ class FoodScanReviewViewModel(
                 selectedCategory = targetCategory,
                 targetDate = effectiveDate,
                 lastRawDescription = description,
-                canRetryTextAnalysis = false
+                canRetryTextAnalysis = false,
+                lastTechnicalError = null
             )
         }
 
@@ -220,6 +222,22 @@ class FoodScanReviewViewModel(
             result.fold(
                 onSuccess = { detectedResult ->
                     val isLocalFallback = detectedResult.analysisSource == com.calculadoracalorias.app.domain.model.VisionSource.LOCAL_DEVICE
+                    val technicalError = detectedResult.technicalError
+                        ?: if (isLocalFallback) {
+                            debugLogManager.logs.value.firstOrNull { !it.isSuccess }?.let { log ->
+                                com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+                                    provider = log.provider,
+                                    model = log.model,
+                                    endpointUrl = log.endpointUrl,
+                                    httpStatus = log.httpStatus,
+                                    errorBody = log.rawResponse,
+                                    exceptionMessage = log.errorMessage,
+                                    durationMs = log.durationMs,
+                                    timestamp = log.timestamp
+                                )
+                            }
+                        } else null
+
                     val combinedItems = if (_uiState.value.items.isEmpty()) {
                         detectedResult.items
                     } else {
@@ -239,18 +257,34 @@ class FoodScanReviewViewModel(
                             totalFat = summary.totalFat,
                             lastRawDescription = description,
                             isPendingAiRefinement = isLocalFallback,
-                            canRetryTextAnalysis = isLocalFallback
+                            canRetryTextAnalysis = isLocalFallback,
+                            lastTechnicalError = technicalError
                         )
                     }
                 },
                 onFailure = { error ->
+                    val technicalError = (error as? com.calculadoracalorias.app.domain.model.AiServiceException)?.technicalDetails
+                        ?: debugLogManager.logs.value.firstOrNull { !it.isSuccess }?.let { log ->
+                            com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+                                provider = log.provider,
+                                model = log.model,
+                                endpointUrl = log.endpointUrl,
+                                httpStatus = log.httpStatus,
+                                errorBody = log.rawResponse,
+                                exceptionMessage = log.errorMessage,
+                                durationMs = log.durationMs,
+                                timestamp = log.timestamp
+                            )
+                        }
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isAnalyzingText = false,
                             errorMessage = error.message ?: "No se pudo interpretar la comida ingresada.",
                             lastRawDescription = description,
-                            canRetryTextAnalysis = true
+                            canRetryTextAnalysis = true,
+                            lastTechnicalError = technicalError
                         )
                     }
                 }

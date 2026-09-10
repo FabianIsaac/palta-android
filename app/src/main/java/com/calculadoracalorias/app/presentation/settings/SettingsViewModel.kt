@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calculadoracalorias.app.data.preferences.UserPreferencesRepository
+import com.calculadoracalorias.app.domain.model.AiConfiguration
+import com.calculadoracalorias.app.domain.model.AiServiceException
 import com.calculadoracalorias.app.domain.model.MealTimeWindows
 import com.calculadoracalorias.app.domain.model.VisionSource
 import com.calculadoracalorias.app.domain.model.backup.BackupDataPayload
@@ -25,7 +27,10 @@ class SettingsViewModel(
     private val openInputStream: (Uri) -> InputStream? = { null },
     private val takePersistableUriPermission: (Uri) -> Unit = {},
     private val releasePersistableUriPermission: (Uri) -> Unit = {},
-    private val autoBackupScheduler: com.calculadoracalorias.app.data.worker.AutoBackupScheduler? = null
+    private val autoBackupScheduler: com.calculadoracalorias.app.data.worker.AutoBackupScheduler? = null,
+    private val getLatestHealthWeightUseCase: com.calculadoracalorias.app.domain.usecase.GetLatestHealthWeightUseCase? = null,
+    private val mealAnalyzer: com.calculadoracalorias.app.data.remote.OpenAiCompatibleMealAnalyzer? = null,
+    private val debugLogManager: com.calculadoracalorias.app.data.remote.AiDebugLogManager = com.calculadoracalorias.app.data.remote.AiDebugLogManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -47,6 +52,11 @@ class SettingsViewModel(
                         customVisionModel = prefs.customVisionModel,
                         visionSource = prefs.preferredVisionSource,
                         healthConnectSyncEnabled = prefs.healthConnectSyncEnabled,
+                        healthConnectActivitySyncEnabled = prefs.healthConnectActivitySyncEnabled,
+                        includeBurnedCaloriesInBudget = prefs.includeBurnedCaloriesInBudget,
+                        healthConnectWeightSyncEnabled = prefs.healthConnectWeightSyncEnabled,
+                        latestHealthWeightKg = prefs.lastSyncedWeightKg,
+                        latestHealthWeightTimestamp = prefs.lastSyncedWeightTimestamp,
                         targetCalories = prefs.targetCalories,
                         targetProteinGrams = prefs.targetProteinGrams,
                         targetCarbsGrams = prefs.targetCarbsGrams,
@@ -61,14 +71,89 @@ class SettingsViewModel(
                 }
             }
         }
+
+        viewModelScope.launch {
+            debugLogManager.logs.collect { logs ->
+                _uiState.update { it.copy(aiCallLogs = logs) }
+            }
+        }
     }
 
-    fun updateHealthConnectAvailability(isAvailable: Boolean, hasPermission: Boolean) {
+    fun updateHealthConnectAvailability(
+        isAvailable: Boolean,
+        hasPermission: Boolean,
+        hasActivityPermissions: Boolean = false,
+        hasWeightPermission: Boolean = false
+    ) {
         _uiState.update {
             it.copy(
                 isHealthConnectAvailable = isAvailable,
-                hasHealthConnectPermission = hasPermission
+                hasHealthConnectPermission = hasPermission,
+                hasActivityPermissions = hasActivityPermissions,
+                hasWeightPermission = hasWeightPermission
             )
+        }
+    }
+
+    fun onToggleHealthConnectActivitySync(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setHealthConnectActivitySyncEnabled(enabled)
+            val msg = if (enabled) "Sincronización de actividad activada" else "Sincronización de actividad desactivada"
+            _uiState.update { it.copy(userMessage = msg) }
+        }
+    }
+
+    fun onToggleIncludeBurnedCalories(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setIncludeBurnedCaloriesInBudget(enabled)
+            val msg = if (enabled) {
+                "Las calorías quemadas se sumarán a tu presupuesto diario"
+            } else {
+                "Presupuesto enfocado únicamente en la ingesta calórica"
+            }
+            _uiState.update { it.copy(userMessage = msg) }
+        }
+    }
+
+    fun onToggleHealthConnectWeightSync(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setHealthConnectWeightSyncEnabled(enabled)
+        }
+    }
+
+    fun onSyncWeightFromHealthConnect() {
+        val useCase = getLatestHealthWeightUseCase ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncingWeight = true, errorMessage = null) }
+            val result = useCase()
+            result.onSuccess { record ->
+                if (record != null) {
+                    val epochMilli = record.recordedAt.toEpochMilli()
+                    userPreferencesRepository.setLastSyncedWeight(record.weightKg, epochMilli)
+                    _uiState.update {
+                        it.copy(
+                            isSyncingWeight = false,
+                            latestHealthWeightKg = record.weightKg,
+                            latestHealthWeightTimestamp = epochMilli,
+                            userMessage = "Peso actualizado desde Health Connect: ${record.weightKg} kg"
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isSyncingWeight = false,
+                            userMessage = "No se encontraron pesajes recientes en Health Connect."
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isSyncingWeight = false,
+                        errorMessage = error.localizedMessage ?: "Error al consultar peso en Health Connect."
+                    )
+                }
+            }
         }
     }
 
@@ -282,6 +367,73 @@ class SettingsViewModel(
             _uiState.update {
                 it.copy(userMessage = "Carpeta de respaldo desvinculada")
             }
+        }
+    }
+
+    fun testAiConnectivity(analyzerOverride: com.calculadoracalorias.app.data.remote.OpenAiCompatibleMealAnalyzer? = null) {
+        val analyzer = analyzerOverride ?: mealAnalyzer
+        if (analyzer == null) {
+            _uiState.update {
+                it.copy(
+                    aiConnectionTestError = "Analizador de IA no configurado.",
+                    isTestingAiConnection = false
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                isTestingAiConnection = true,
+                aiConnectionTestResult = null,
+                aiConnectionTestError = null
+            )
+        }
+
+        viewModelScope.launch {
+            val currentConfig = AiConfiguration(
+                provider = _uiState.value.aiProvider,
+                apiKey = _uiState.value.apiKey,
+                customEndpointUrl = _uiState.value.customEndpointUrl,
+                customTextModel = _uiState.value.customTextModel,
+                customVisionModel = _uiState.value.customVisionModel
+            )
+
+            val result = analyzer.testConnectivity(currentConfig)
+            result.fold(
+                onSuccess = { details ->
+                    _uiState.update {
+                        it.copy(
+                            isTestingAiConnection = false,
+                            aiConnectionTestResult = details,
+                            aiConnectionTestError = null
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    val details = (error as? AiServiceException)?.technicalDetails
+                    _uiState.update {
+                        it.copy(
+                            isTestingAiConnection = false,
+                            aiConnectionTestResult = details,
+                            aiConnectionTestError = error.message ?: "Fallo al conectar con el proveedor."
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun clearAiLogs() {
+        debugLogManager.clear()
+    }
+
+    fun dismissAiConnectionTestResult() {
+        _uiState.update {
+            it.copy(
+                aiConnectionTestResult = null,
+                aiConnectionTestError = null
+            )
         }
     }
 }

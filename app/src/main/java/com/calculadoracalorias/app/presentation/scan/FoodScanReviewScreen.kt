@@ -94,6 +94,7 @@ fun FoodScanReviewScreen(
     var showTextEntrySheet by remember { mutableStateOf(false) }
     var itemToEditName by remember { mutableStateOf<ScannedFoodItem?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showDiagnosticDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { msg ->
@@ -148,6 +149,13 @@ fun FoodScanReviewScreen(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+
+    if (showDiagnosticDialog && uiState.lastTechnicalError != null) {
+        AiDiagnosticDetailsDialog(
+            technicalDetails = uiState.lastTechnicalError,
+            onDismiss = { showDiagnosticDialog = false }
+        )
     }
 
     Scaffold(
@@ -408,29 +416,50 @@ fun FoodScanReviewScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(14.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedButton(
-                                    onClick = { showTextEntrySheet = true },
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Text(stringResource(id = R.string.btn_edit_text))
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (uiState.lastTechnicalError != null) {
+                                    TextButton(
+                                        onClick = { showDiagnosticDialog = true },
+                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Ver detalle técnico",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Button(
-                                    onClick = { onEvent(FoodScanReviewEvent.OnRetryNaturalLanguage) },
-                                    shape = RoundedCornerShape(8.dp)
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(id = R.string.btn_retry_analysis))
+                                    OutlinedButton(
+                                        onClick = { showTextEntrySheet = true },
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(stringResource(id = R.string.btn_edit_text))
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(
+                                        onClick = { onEvent(FoodScanReviewEvent.OnRetryNaturalLanguage) },
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(stringResource(id = R.string.btn_retry_analysis))
+                                    }
                                 }
                             }
                         }
@@ -1043,3 +1072,28 @@ private fun PreviewFoodScanReviewScreenYesterday() {
         )
     }
 }
+
+@Preview(name = "Pantalla de Revisión - Error de Conexión IA con Detalle", showBackground = true, widthDp = 360)
+@Composable
+private fun PreviewFoodScanReviewScreenAiError() {
+    CalculadoraCaloriasTheme {
+        FoodScanReviewScreen(
+            uiState = FoodScanReviewUiState(
+                items = emptyList(),
+                selectedCategory = MealCategory.ALMUERZO,
+                lastRawDescription = "1 empanada de pino al horno y una ensalada a la chilena",
+                canRetryTextAnalysis = true,
+                lastTechnicalError = com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+                    provider = com.calculadoracalorias.app.domain.model.AiProvider.MINIMAX,
+                    endpointUrl = "https://api.minimaxi.chat/v1/chat/completions",
+                    model = "MiniMax-M2.7-highspeed",
+                    httpStatus = 504,
+                    durationMs = 60120L,
+                    exceptionMessage = "SocketTimeoutException: timeout after 60000ms"
+                )
+            ),
+            onEvent = {}
+        )
+    }
+}
+

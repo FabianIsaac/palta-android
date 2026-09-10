@@ -21,6 +21,10 @@ data class DailySummaryUiState(
     val mealsByCategory: Map<MealCategory, List<MealEntry>> = emptyMap(),
     val streak: DailyStreak = DailyStreak(),
     val supplements: List<Supplement> = emptyList(),
+    val burnedCalories: Double = 0.0,
+    val stepsCount: Long = 0L,
+    val isActivitySyncEnabled: Boolean = true,
+    val includeBurnedInBudget: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -31,4 +35,5 @@ sealed interface DailySummaryEvent {
     data class OnAddMealClicked(val category: MealCategory) : DailySummaryEvent
     data class OnMealItemClicked(val mealId: Long) : DailySummaryEvent
     data class OnToggleSupplement(val supplementId: String, val isTaken: Boolean) : DailySummaryEvent
+    data object OnRefreshActivity : DailySummaryEvent
 }

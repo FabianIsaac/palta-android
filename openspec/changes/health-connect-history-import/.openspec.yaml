@@ -1,4 +1,0 @@
-schema: spec-driven
-created: "2026-09-09"
-name: health-connect-history-import
-description: Lectura e importación bajo demanda de registros nutricionales pasados desde Android Health Connect hacia la base de datos local con deduplicación y categorización chilena.

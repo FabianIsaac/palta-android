@@ -20,6 +20,6 @@ class RemoteNaturalLanguageMealAnalyzer : OpenAiCompatibleMealAnalyzer {
         httpClient: HttpClient,
         catalogRepository: FoodCatalogRepository? = null,
         endpointUrl: String = "https://api.minimaxi.chat/v1/chat/completions",
-        model: String = "MiniMax-Text-01"
+        model: String = "MiniMax-M2.7-highspeed"
     ) : super(apiKeyProvider, httpClient, catalogRepository, endpointUrl, model)
 }

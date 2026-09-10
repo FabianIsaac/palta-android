@@ -37,7 +37,7 @@ enum class AiProvider(
         id = "minimax",
         displayName = "MiniMax Cloud",
         defaultEndpointUrl = "https://api.minimaxi.chat/v1/chat/completions",
-        defaultTextModel = "MiniMax-Text-01",
+        defaultTextModel = "MiniMax-M2.7-highspeed",
         defaultVisionModel = "MiniMax-M3"
     ),
     CUSTOM(

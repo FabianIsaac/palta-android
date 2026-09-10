@@ -17,6 +17,6 @@ class RemoteSupplementNutritionAnalyzer : OpenAiCompatibleSupplementAnalyzer {
         apiKeyProvider: () -> String,
         httpClient: HttpClient,
         endpointUrl: String = "https://api.minimaxi.chat/v1/chat/completions",
-        model: String = "MiniMax-Text-01"
+        model: String = "MiniMax-M2.7-highspeed"
     ) : super(apiKeyProvider, httpClient, endpointUrl, model)
 }

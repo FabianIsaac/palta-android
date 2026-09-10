@@ -9,7 +9,8 @@ import java.math.RoundingMode
 data class DetectedMealResult(
     val items: List<ScannedFoodItem>,
     val suggestedMealType: MealCategory,
-    val analysisSource: VisionSource
+    val analysisSource: VisionSource,
+    val technicalError: AiTechnicalDetails? = null
 ) {
     val totalCalories: Double
         get() = roundToDecimals(items.sumOf { it.totalCalories }, 1)

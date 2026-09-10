@@ -350,5 +350,106 @@ class SettingsViewModelTest {
             )
         }
     }
+
+    @Test
+    @DisplayName("testAiConnectivity exitoso debe actualizar aiConnectionTestResult y limpiar errores")
+    fun testAiConnectivitySuccess() = runTest(testDispatcher) {
+        val mockAnalyzer = mockk<com.calculadoracalorias.app.data.remote.OpenAiCompatibleMealAnalyzer>()
+        val mockDetails = com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+            provider = com.calculadoracalorias.app.domain.model.AiProvider.MINIMAX,
+            endpointUrl = "https://api.minimax.chat/v1/chat/completions",
+            model = "MiniMax-M2.7-highspeed",
+            httpStatus = 200,
+            durationMs = 120L
+        )
+        coEvery { mockAnalyzer.testConnectivity(any()) } returns Result.success(mockDetails)
+
+        val viewModel = SettingsViewModel(
+            userPreferencesRepository = userPreferencesRepository,
+            exportBackupUseCase = exportBackupUseCase,
+            importBackupUseCase = importBackupUseCase,
+            mealAnalyzer = mockAnalyzer
+        )
+        advanceUntilIdle()
+
+        viewModel.testAiConnectivity()
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.isTestingAiConnection)
+        assertEquals(mockDetails, viewModel.uiState.value.aiConnectionTestResult)
+        assertNull(viewModel.uiState.value.aiConnectionTestError)
+
+        viewModel.dismissAiConnectionTestResult()
+        assertNull(viewModel.uiState.value.aiConnectionTestResult)
+        assertNull(viewModel.uiState.value.aiConnectionTestError)
+    }
+
+    @Test
+    @DisplayName("testAiConnectivity con fallo debe capturar error y detalles técnicos")
+    fun testAiConnectivityFailure() = runTest(testDispatcher) {
+        val mockAnalyzer = mockk<com.calculadoracalorias.app.data.remote.OpenAiCompatibleMealAnalyzer>()
+        val mockDetails = com.calculadoracalorias.app.domain.model.AiTechnicalDetails(
+            provider = com.calculadoracalorias.app.domain.model.AiProvider.MINIMAX,
+            endpointUrl = "https://api.minimax.chat/v1/chat/completions",
+            model = "MiniMax-M2.7-highspeed",
+            httpStatus = 401,
+            durationMs = 85L,
+            exceptionMessage = "HTTP 401 Unauthorized"
+        )
+        coEvery { mockAnalyzer.testConnectivity(any()) } returns Result.failure(
+            com.calculadoracalorias.app.domain.model.AiServiceException("HTTP 401 Unauthorized", mockDetails)
+        )
+
+        val viewModel = SettingsViewModel(
+            userPreferencesRepository = userPreferencesRepository,
+            exportBackupUseCase = exportBackupUseCase,
+            importBackupUseCase = importBackupUseCase,
+            mealAnalyzer = mockAnalyzer
+        )
+        advanceUntilIdle()
+
+        viewModel.testAiConnectivity()
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.isTestingAiConnection)
+        assertEquals("HTTP 401 Unauthorized", viewModel.uiState.value.aiConnectionTestError)
+        assertEquals(mockDetails, viewModel.uiState.value.aiConnectionTestResult)
+    }
+
+    @Test
+    @DisplayName("Debe reflejar logs de AiDebugLogManager en uiState y permitir limpiarlos")
+    fun testAiCallLogsObservationAndClear() = runTest(testDispatcher) {
+        val debugLogManager = com.calculadoracalorias.app.data.remote.AiDebugLogManager(maxEntries = 10)
+        val entry = com.calculadoracalorias.app.domain.model.AiCallLogEntry(
+            id = "log-1",
+            timestamp = 1000L,
+            callType = com.calculadoracalorias.app.domain.model.AiCallType.MEAL_TEXT,
+            provider = com.calculadoracalorias.app.domain.model.AiProvider.MINIMAX,
+            endpointUrl = "https://api.minimax.chat/v1",
+            model = "MiniMax-M2.7-highspeed",
+            promptSummary = "Almuerzo: 1 cazuela de ave",
+            durationMs = 200L,
+            httpStatus = 200,
+            isSuccess = true
+        )
+        debugLogManager.log(entry)
+
+        val viewModel = SettingsViewModel(
+            userPreferencesRepository = userPreferencesRepository,
+            exportBackupUseCase = exportBackupUseCase,
+            importBackupUseCase = importBackupUseCase,
+            debugLogManager = debugLogManager
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.aiCallLogs.size)
+        assertEquals("log-1", viewModel.uiState.value.aiCallLogs.first().id)
+
+        viewModel.clearAiLogs()
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.aiCallLogs.size)
+    }
 }
+
 

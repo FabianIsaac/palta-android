@@ -30,13 +30,18 @@ import kotlinx.serialization.json.Json
 import java.util.Base64
 import java.util.UUID
 
+import com.calculadoracalorias.app.data.remote.AiDebugLogManager
+import com.calculadoracalorias.app.domain.model.AiCallLogEntry
+import com.calculadoracalorias.app.domain.model.AiCallType
+
 /**
  * Analizador universal de fotos de comida compatible con la especificación multimodal de OpenAI
  * (compatible con NVIDIA NIM Llama-3.2-Vision, Google Gemini OpenAI endpoint, MiniMax y Custom).
  */
 open class OpenAiCompatibleVisionAnalyzer(
     private val configProvider: () -> AiConfiguration,
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val debugLogManager: AiDebugLogManager = AiDebugLogManager
 ) : FoodVisionAnalyzer {
 
     // Constructor de conveniencia retrocompatible
@@ -120,28 +125,88 @@ open class OpenAiCompatibleVisionAnalyzer(
                 temperature = 0.1f
             )
 
+            val startTime = System.currentTimeMillis()
             val httpResponse = httpClient.post(config.effectiveEndpointUrl) {
                 header(HttpHeaders.Authorization, "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(request)
             }
 
+            val duration = System.currentTimeMillis() - startTime
+            val statusCode = httpResponse.status.value
+
             if (!httpResponse.status.isSuccess()) {
                 val errorBody = try { httpResponse.body<String>() } catch (_: Exception) { "Error de red" }
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.MEAL_IMAGE,
+                        provider = config.provider,
+                        model = config.effectiveVisionModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = "[Foto de comida: ${imageBytes.size} bytes]",
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = false,
+                        rawResponse = errorBody,
+                        errorMessage = "HTTP $statusCode: $errorBody"
+                    )
+                )
                 return Result.failure(
-                    RuntimeException("Error al consultar ${config.provider.displayName} (HTTP ${httpResponse.status.value}): $errorBody")
+                    RuntimeException("Error al consultar ${config.provider.displayName} (HTTP $statusCode): $errorBody")
                 )
             }
 
             val chatResponse = httpResponse.body<OpenAiChatResponse>()
             val rawContent = chatResponse.choices.firstOrNull()?.message?.content
-                ?: return Result.failure(RuntimeException("La respuesta del proveedor de IA no contiene opciones de respuesta."))
+            if (rawContent == null) {
+                debugLogManager.log(
+                    AiCallLogEntry(
+                        callType = AiCallType.MEAL_IMAGE,
+                        provider = config.provider,
+                        model = config.effectiveVisionModel,
+                        endpointUrl = config.effectiveEndpointUrl,
+                        promptSummary = "[Foto de comida: ${imageBytes.size} bytes]",
+                        httpStatus = statusCode,
+                        durationMs = duration,
+                        isSuccess = false,
+                        errorMessage = "La respuesta del proveedor de IA no contiene opciones de respuesta."
+                    )
+                )
+                return Result.failure(RuntimeException("La respuesta del proveedor de IA no contiene opciones de respuesta."))
+            }
 
             val mealDto = parseMealDto(rawContent)
             val detectedResult = mapDtoToResult(mealDto, config.provider.toVisionSource())
 
+            debugLogManager.log(
+                AiCallLogEntry(
+                    callType = AiCallType.MEAL_IMAGE,
+                    provider = config.provider,
+                    model = config.effectiveVisionModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    promptSummary = "[Foto de comida: ${imageBytes.size} bytes]",
+                    httpStatus = statusCode,
+                    durationMs = duration,
+                    isSuccess = true,
+                    rawResponse = rawContent
+                )
+            )
+
             Result.success(detectedResult)
         } catch (e: Exception) {
+            debugLogManager.log(
+                AiCallLogEntry(
+                    callType = AiCallType.MEAL_IMAGE,
+                    provider = config.provider,
+                    model = config.effectiveVisionModel,
+                    endpointUrl = config.effectiveEndpointUrl,
+                    promptSummary = "[Foto de comida: ${imageBytes.size} bytes]",
+                    httpStatus = null,
+                    durationMs = 0L,
+                    isSuccess = false,
+                    errorMessage = e.message ?: e.toString()
+                )
+            )
             Result.failure(e)
         }
     }

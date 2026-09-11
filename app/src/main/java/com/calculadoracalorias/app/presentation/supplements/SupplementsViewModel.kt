@@ -17,9 +17,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+import com.calculadoracalorias.app.domain.usecase.AnalyzeNutritionLabelUseCase
+
 class SupplementsViewModel(
     private val supplementRepository: SupplementRepository,
-    private val estimateSupplementNutritionUseCase: EstimateSupplementNutritionUseCase
+    private val estimateSupplementNutritionUseCase: EstimateSupplementNutritionUseCase,
+    private val analyzeNutritionLabelUseCase: AnalyzeNutritionLabelUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SupplementsUiState())
@@ -30,6 +33,7 @@ class SupplementsViewModel(
 
     init {
         observeSupplements()
+        observeIntakeCounts()
     }
 
     private fun observeSupplements() {
@@ -44,6 +48,17 @@ class SupplementsViewModel(
                     current.copy(errorMessage = error.message ?: "Error al cargar la lista de suplementos.")
                 }
             }
+            .launchIn(viewModelScope)
+    }
+
+    private fun observeIntakeCounts() {
+        supplementRepository.getSupplementIntakeCounts()
+            .onEach { countsMap ->
+                _uiState.update { current ->
+                    current.copy(intakeCounts = countsMap)
+                }
+            }
+            .catch { /* No crítico */ }
             .launchIn(viewModelScope)
     }
 
@@ -69,6 +84,12 @@ class SupplementsViewModel(
             }
             SupplementsEvent.OnEstimateClicked -> {
                 estimateNutrition()
+            }
+            SupplementsEvent.OnToggleSuggestionsExpanded -> {
+                _uiState.update { it.copy(areSuggestionsExpanded = !it.areSuggestionsExpanded) }
+            }
+            is SupplementsEvent.OnScanImageSelected -> {
+                scanNutritionLabel(event.imageBytes)
             }
             SupplementsEvent.OnSaveClicked -> {
                 saveSupplement()
@@ -177,6 +198,41 @@ class SupplementsViewModel(
                     current.copy(
                         isSaving = false,
                         errorMessage = "Error al guardar el suplemento."
+                    )
+                }
+            }
+        }
+    }
+
+    private fun scanNutritionLabel(imageBytes: ByteArray) {
+        val labelUseCase = analyzeNutritionLabelUseCase
+        if (labelUseCase == null) {
+            _uiState.update { it.copy(errorMessage = "El escáner de tablas nutricionales no está disponible.") }
+            return
+        }
+
+        _uiState.update { it.copy(isScanningLabel = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result = labelUseCase(imageBytes)
+            if (result.isSuccess) {
+                val scanResult = result.getOrThrow()
+                _uiState.update { current ->
+                    current.copy(
+                        isScanningLabel = false,
+                        inputName = scanResult.productName?.takeIf { it.isNotBlank() } ?: current.inputName,
+                        inputDosage = scanResult.servingDescription,
+                        inputCalories = if (scanResult.calories == 0.0) "0" else scanResult.calories.toString(),
+                        inputProtein = if (scanResult.proteinGrams == 0.0) "0" else scanResult.proteinGrams.toString(),
+                        inputCarbs = if (scanResult.carbsGrams == 0.0) "0" else scanResult.carbsGrams.toString(),
+                        inputFat = if (scanResult.fatGrams == 0.0) "0" else scanResult.fatGrams.toString(),
+                        successMessage = "Tabla nutricional analizada con éxito."
+                    )
+                }
+            } else {
+                _uiState.update { current ->
+                    current.copy(
+                        isScanningLabel = false,
+                        errorMessage = result.exceptionOrNull()?.message ?: "No se pudo interpretar la tabla nutricional. Revisa la imagen o ingresa los datos manualmente."
                     )
                 }
             }

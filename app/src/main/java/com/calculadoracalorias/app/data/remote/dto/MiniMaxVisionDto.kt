@@ -108,6 +108,20 @@ data class OpenAiSupplementEstimateDto(
     val fatGrams: Double = 0.0
 )
 
+@Serializable
+data class OpenAiNutritionLabelDto(
+    @SerialName("product_name")
+    val productName: String? = null,
+    @SerialName("serving_description")
+    val servingDescription: String? = null,
+    @SerialName("serving_grams")
+    val servingGrams: Double? = null,
+    val calories: Double = 0.0,
+    val protein: Double = 0.0,
+    val carbs: Double = 0.0,
+    val fat: Double = 0.0
+)
+
 // Alias retrocompatibles con código preexistente
 typealias MiniMaxChatRequest = OpenAiChatRequest
 typealias MiniMaxMessage = OpenAiMessage
@@ -122,3 +136,4 @@ typealias MiniMaxError = OpenAiError
 typealias MiniMaxDetectedMealDto = OpenAiDetectedMealDto
 typealias MiniMaxFoodItemDto = OpenAiFoodItemDto
 typealias MiniMaxSupplementEstimateDto = OpenAiSupplementEstimateDto
+typealias MiniMaxNutritionLabelDto = OpenAiNutritionLabelDto

@@ -14,7 +14,7 @@ import com.calculadoracalorias.app.domain.usecase.backup.ExportBackupUseCase
 import kotlinx.coroutines.flow.first
 import java.io.OutputStream
 
-class AutoBackupWorker(
+class AutoBackupWorker @JvmOverloads constructor(
     context: Context,
     workerParams: WorkerParameters,
     private val exportBackupUseCaseProvider: () -> ExportBackupUseCase = {

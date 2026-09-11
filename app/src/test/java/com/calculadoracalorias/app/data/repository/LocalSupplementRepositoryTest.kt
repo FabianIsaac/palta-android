@@ -167,4 +167,20 @@ class LocalSupplementRepositoryTest {
             supplementDao.deleteById("custom_1")
         }
     }
+
+    @Test
+    @DisplayName("getSupplementIntakeCounts debe retornar el mapa de conteo de tomas")
+    fun testGetSupplementIntakeCounts() = runBlocking {
+        val mockTuples = listOf(
+            com.calculadoracalorias.app.data.local.dao.SupplementIntakeCountTuple("creatina", 15),
+            com.calculadoracalorias.app.data.local.dao.SupplementIntakeCountTuple("omega_3", 7)
+        )
+        every { supplementLogDao.getAllSupplementIntakeCounts() } returns flowOf(mockTuples)
+
+        val countsMap = repository.getSupplementIntakeCounts().first()
+
+        assertEquals(2, countsMap.size)
+        assertEquals(15, countsMap["creatina"])
+        assertEquals(7, countsMap["omega_3"])
+    }
 }

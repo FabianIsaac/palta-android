@@ -234,9 +234,19 @@ class MainActivity : ComponentActivity() {
         val estimateSupplementNutritionUseCase = EstimateSupplementNutritionUseCase(
             remoteAnalyzer = remoteSupplementAnalyzer
         )
+        val nutritionLabelAnalyzer = com.calculadoracalorias.app.data.vision.OpenAiCompatibleNutritionLabelAnalyzer(
+            configProvider = {
+                kotlinx.coroutines.runBlocking { userPreferencesRepository.getAiConfiguration() }
+            },
+            httpClient = httpClient
+        )
+        val analyzeNutritionLabelUseCase = com.calculadoracalorias.app.domain.usecase.AnalyzeNutritionLabelUseCase(
+            analyzer = nutritionLabelAnalyzer
+        )
         val supplementsViewModel = SupplementsViewModel(
             supplementRepository = supplementRepository,
-            estimateSupplementNutritionUseCase = estimateSupplementNutritionUseCase
+            estimateSupplementNutritionUseCase = estimateSupplementNutritionUseCase,
+            analyzeNutritionLabelUseCase = analyzeNutritionLabelUseCase
         )
 
         val backupRepository = RoomBackupRepository(
@@ -285,7 +295,8 @@ class MainActivity : ComponentActivity() {
                         statisticsViewModel = statisticsViewModel,
                         analyzerFactory = analyzerFactory,
                         userPreferencesRepository = userPreferencesRepository,
-                        healthConnectRepository = healthConnectRepository
+                        healthConnectRepository = healthConnectRepository,
+                        analyzeNutritionLabelUseCase = analyzeNutritionLabelUseCase
                     )
                 }
             }
@@ -303,7 +314,8 @@ fun AppNavigation(
     statisticsViewModel: StatisticsViewModel,
     analyzerFactory: FoodVisionAnalyzerFactory,
     userPreferencesRepository: UserPreferencesRepository,
-    healthConnectRepository: AndroidHealthConnectRepository
+    healthConnectRepository: AndroidHealthConnectRepository,
+    analyzeNutritionLabelUseCase: com.calculadoracalorias.app.domain.usecase.AnalyzeNutritionLabelUseCase
 ) {
     var currentScreen by remember { mutableStateOf(AppDestination.SUMMARY) }
     var pendingMealCategory by remember { mutableStateOf<MealCategory?>(null) }
@@ -485,7 +497,8 @@ fun AppNavigation(
                         onEvent = editMealViewModel::onEvent,
                         onNavigateBack = { currentScreen = AppDestination.SUMMARY },
                         onSearchCatalog = editMealViewModel::searchCatalog,
-                        onGetPopularFoods = editMealViewModel::getPopularFoods
+                        onGetPopularFoods = editMealViewModel::getPopularFoods,
+                        onScanNutritionLabel = { imageBytes -> analyzeNutritionLabelUseCase(imageBytes) }
                     )
                 }
 
@@ -540,10 +553,12 @@ fun AppNavigation(
                         lastAutoBackupTimestamp = settingsUiState.lastAutoBackupTimestamp,
                         isExporting = settingsUiState.isExporting,
                         isImporting = settingsUiState.isImporting,
+                        isSyncingDrive = settingsUiState.isSyncingDrive,
                         pendingRestorePreview = settingsUiState.pendingRestorePreview,
                         onToggleAutoBackup = settingsViewModel::onToggleAutoBackup,
                         onSelectAutoBackupFolder = settingsViewModel::onSelectAutoBackupFolder,
                         onUnlinkAutoBackupFolder = settingsViewModel::onUnlinkAutoBackupFolder,
+                        onSyncDriveNow = settingsViewModel::onSyncDriveNow,
                         onExportBackup = settingsViewModel::onExportBackup,
                         onSelectBackupFile = settingsViewModel::onSelectBackupFile,
                         onConfirmRestore = settingsViewModel::onConfirmRestore,

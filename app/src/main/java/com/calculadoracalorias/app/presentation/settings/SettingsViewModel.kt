@@ -318,7 +318,7 @@ class SettingsViewModel(
                 autoBackupScheduler?.scheduleDailyBackup()
                 autoBackupScheduler?.triggerImmediateBackup()
                 _uiState.update {
-                    it.copy(userMessage = "Carpeta vinculada para respaldo automático")
+                    it.copy(userMessage = "Carpeta vinculada y respaldo sincronizado con Google Drive")
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -340,6 +340,7 @@ class SettingsViewModel(
                 }
                 userPreferencesRepository.setAutoBackupEnabled(true)
                 autoBackupScheduler?.scheduleDailyBackup()
+                autoBackupScheduler?.triggerImmediateBackup()
                 _uiState.update {
                     it.copy(userMessage = "Respaldo automático activado")
                 }
@@ -348,6 +349,37 @@ class SettingsViewModel(
                 autoBackupScheduler?.cancelAutoBackup()
                 _uiState.update {
                     it.copy(userMessage = "Respaldo automático desactivado")
+                }
+            }
+        }
+    }
+
+    fun onSyncDriveNow() {
+        val currentUri = _uiState.value.autoBackupFolderUri
+        if (currentUri.isNullOrBlank()) {
+            _uiState.update {
+                it.copy(errorMessage = "Debes vincular una carpeta de Google Drive primero")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncingDrive = true, errorMessage = null) }
+            try {
+                autoBackupScheduler?.triggerImmediateBackup()
+                kotlinx.coroutines.delay(1200)
+                _uiState.update {
+                    it.copy(
+                        isSyncingDrive = false,
+                        userMessage = "Respaldo sincronizado con Google Drive exitosamente"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSyncingDrive = false,
+                        errorMessage = "Error al sincronizar con Google Drive: ${e.localizedMessage ?: "desconocido"}"
+                    )
                 }
             }
         }

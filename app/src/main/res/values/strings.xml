@@ -210,6 +210,7 @@
     <!-- Pantalla de Gestión de Suplementos -->
     <string name="supplements_suggestions_title">Sugerencias populares</string>
     <string name="supplements_suggestions_subtitle">Toca para activar o desactivar en tu rutina</string>
+    <string name="supplements_suggestions_count">%1$d disponibles</string>
     <string name="supplements_add_title">Agregar suplemento personalizado</string>
     <string name="supplements_add_subtitle">Ingresa el nombre y deja que la IA estime sus macros o complétalos a mano</string>
     <string name="supplements_name_label">Nombre del suplemento</string>
@@ -222,10 +223,17 @@
     <string name="supplements_fat_label">Grasas (g)</string>
     <string name="btn_estimate_with_ai">✨ Estimar macros con IA</string>
     <string name="btn_estimating_with_ai">Estimando con IA…</string>
+    <string name="btn_scan_nutrition_label">📸 Escanear tabla nutricional</string>
+    <string name="btn_scanning_label">Escaneando etiqueta con IA…</string>
+    <string name="dialog_select_image_source_title">Elegir origen de la imagen</string>
+    <string name="btn_take_photo_camera">Tomar foto con la cámara</string>
+    <string name="btn_pick_gallery">Seleccionar desde la galería</string>
     <string name="btn_save_supplement">Guardar suplemento</string>
     <string name="supplements_active_routine_title">Tu rutina de suplementos</string>
     <string name="supplements_active_routine_subtitle">Estos suplementos aparecerán en tu resumen diario</string>
     <string name="supplements_empty_routine">Aún no tienes suplementos activados en tu rutina. Activa una sugerencia o agrega uno nuevo arriba.</string>
+    <string name="supplements_intake_count_format">🏆 %1$d tomas registradas</string>
+    <string name="supplements_intake_count_zero">Sin tomas registradas</string>
     <string name="dialog_delete_supplement_title">¿Eliminar suplemento?</string>
     <string name="dialog_delete_supplement_msg">¿Seguro que quieres eliminar este suplemento de tu catálogo?</string>
     <string name="btn_delete_supplement_confirm">Eliminar</string>
@@ -253,13 +261,16 @@
     <string name="auto_backup_folder_label">Carpeta:</string>
     <string name="auto_backup_no_folder">Sin carpeta de Google Drive vinculada</string>
     <string name="auto_backup_linked_folder_format">📁 %1$s</string>
-    <string name="auto_backup_last_sync_format">Último respaldo automático: %1$s</string>
-    <string name="auto_backup_last_sync_none">Aún no se ha ejecutado el primer respaldo automático</string>
+    <string name="auto_backup_last_sync_format">Última sincronización con Drive: %1$s</string>
+    <string name="auto_backup_last_sync_none">Aún no se ha sincronizado con Google Drive</string>
     <string name="btn_link_drive_folder">Vincular carpeta de Drive</string>
     <string name="btn_change_drive_folder">Cambiar carpeta</string>
     <string name="btn_unlink_drive_folder">Desvincular</string>
-    <string name="manual_backup_title">Acciones manuales</string>
-    <string name="manual_backup_last_format">Último respaldo manual: %1$s</string>
+    <string name="btn_sync_drive_now">Sincronizar ahora</string>
+    <string name="btn_syncing_drive">Sincronizando…</string>
+    <string name="manual_backup_title">Copia local en archivo JSON (Opcional)</string>
+    <string name="manual_backup_section_desc">Exporta o restaura manualmente un archivo de respaldo en la memoria de tu teléfono.</string>
+    <string name="manual_backup_last_format">Última copia local guardada: %1$s</string>
     <string name="btn_export_backup_file">Exportar archivo</string>
     <string name="btn_restore_backup_file">Restaurar</string>
 </resources>

@@ -48,4 +48,9 @@ interface SupplementRepository {
      * Elimina un suplemento del catálogo persistente.
      */
     suspend fun deleteSupplement(supplementId: String): Result<Unit>
+
+    /**
+     * Flujo reactivo con el mapa del conteo total de tomas históricas por cada suplemento (supplementId -> cantidad).
+     */
+    fun getSupplementIntakeCounts(): Flow<Map<String, Int>>
 }

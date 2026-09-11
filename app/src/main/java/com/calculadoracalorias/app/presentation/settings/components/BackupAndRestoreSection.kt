@@ -53,9 +53,11 @@ fun BackupAndRestoreSection(
     lastAutoBackupTimestamp: Long? = null,
     isExporting: Boolean = false,
     isImporting: Boolean = false,
+    isSyncingDrive: Boolean = false,
     onToggleAutoBackup: (Boolean) -> Unit = {},
     onSelectFolderClick: () -> Unit = {},
     onUnlinkFolderClick: () -> Unit = {},
+    onSyncDriveClick: () -> Unit = {},
     onCreateBackupClick: () -> Unit = {},
     onRestoreBackupClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -164,13 +166,49 @@ fun BackupAndRestoreSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                // Botones de acción para Google Drive
+                val hasFolder = !autoBackupFolderUri.isNullOrBlank()
+
+                // Botón para forzar sincronización con Drive de inmediato
+                if (hasFolder) {
+                    Button(
+                        onClick = onSyncDriveClick,
+                        enabled = !isSyncingDrive && !isExporting && !isImporting,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isSyncingDrive) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.btn_syncing_drive),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.btn_sync_drive_now),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                // Botones de configuración de carpeta en Google Drive
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val hasFolder = !autoBackupFolderUri.isNullOrBlank()
                     FilledTonalButton(
                         onClick = onSelectFolderClick,
                         modifier = Modifier.weight(1f)
@@ -207,13 +245,19 @@ fun BackupAndRestoreSection(
                 thickness = 1.dp
             )
 
-            // Subsección: Acciones Manuales
+            // Subsección: Acciones Manuales (Copia Local)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = stringResource(R.string.manual_backup_title),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = stringResource(R.string.manual_backup_section_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
                 val manualStatusText = if (lastBackupTimestamp != null && lastBackupTimestamp > 0L) {

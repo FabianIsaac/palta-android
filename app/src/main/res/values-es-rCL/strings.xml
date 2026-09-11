@@ -245,13 +245,16 @@
     <string name="auto_backup_folder_label">Carpeta:</string>
     <string name="auto_backup_no_folder">Sin carpeta de Google Drive vinculada</string>
     <string name="auto_backup_linked_folder_format">📁 %1$s</string>
-    <string name="auto_backup_last_sync_format">Último respaldo automático: %1$s</string>
-    <string name="auto_backup_last_sync_none">Aún no se ha ejecutado el primer respaldo automático</string>
+    <string name="auto_backup_last_sync_format">Última sincronización con Drive: %1$s</string>
+    <string name="auto_backup_last_sync_none">Aún no se ha sincronizado con Google Drive</string>
     <string name="btn_link_drive_folder">Vincular carpeta de Drive</string>
     <string name="btn_change_drive_folder">Cambiar carpeta</string>
     <string name="btn_unlink_drive_folder">Desvincular</string>
-    <string name="manual_backup_title">Acciones manuales</string>
-    <string name="manual_backup_last_format">Último respaldo manual: %1$s</string>
+    <string name="btn_sync_drive_now">Sincronizar ahora</string>
+    <string name="btn_syncing_drive">Sincronizando…</string>
+    <string name="manual_backup_title">Copia local en archivo JSON (Opcional)</string>
+    <string name="manual_backup_section_desc">Exporta o restaura manualmente un archivo de respaldo en la memoria de tu teléfono.</string>
+    <string name="manual_backup_last_format">Última copia local guardada: %1$s</string>
     <string name="btn_export_backup_file">Exportar archivo</string>
     <string name="btn_restore_backup_file">Restaurar</string>
 </resources>

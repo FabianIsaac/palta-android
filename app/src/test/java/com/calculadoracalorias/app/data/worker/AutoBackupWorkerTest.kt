@@ -159,4 +159,13 @@ class AutoBackupWorkerTest {
         val result = worker.doWork()
         assertEquals(ListenableWorker.Result.failure(), result)
     }
+
+    @Test
+    @DisplayName("AutoBackupWorker posee constructor binario (Context, WorkerParameters) compatible con WorkManager")
+    fun testBinaryConstructorReflection() {
+        val constructor = AutoBackupWorker::class.java.getConstructor(Context::class.java, WorkerParameters::class.java)
+        org.junit.jupiter.api.Assertions.assertNotNull(constructor)
+        val instance = constructor.newInstance(context, workerParams)
+        org.junit.jupiter.api.Assertions.assertNotNull(instance)
+    }
 }

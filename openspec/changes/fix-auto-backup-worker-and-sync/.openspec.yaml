@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-11"
+name: fix-auto-backup-worker-and-sync
+description: Corrección del constructor de WorkManager para AutoBackupWorker, ejecución inmediata de sincronización y acción manual de respaldo hacia la carpeta vinculada de Google Drive.

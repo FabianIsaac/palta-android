@@ -141,10 +141,12 @@ fun SettingsScreen(
     lastAutoBackupTimestamp: Long? = null,
     isExporting: Boolean = false,
     isImporting: Boolean = false,
+    isSyncingDrive: Boolean = false,
     pendingRestorePreview: BackupPreviewInfo? = null,
     onToggleAutoBackup: (Boolean) -> Unit = {},
     onSelectAutoBackupFolder: (Uri, String?) -> Unit = { _, _ -> },
     onUnlinkAutoBackupFolder: () -> Unit = {},
+    onSyncDriveNow: () -> Unit = {},
     onExportBackup: (Uri) -> Unit = {},
     onSelectBackupFile: (Uri) -> Unit = {},
     onConfirmRestore: () -> Unit = {},
@@ -1087,11 +1089,13 @@ fun SettingsScreen(
                 lastAutoBackupTimestamp = lastAutoBackupTimestamp,
                 isExporting = isExporting,
                 isImporting = isImporting,
+                isSyncingDrive = isSyncingDrive,
                 onToggleAutoBackup = onToggleAutoBackup,
                 onSelectFolderClick = {
                     openDocumentTreeLauncher.launch(null)
                 },
                 onUnlinkFolderClick = onUnlinkAutoBackupFolder,
+                onSyncDriveClick = onSyncDriveNow,
                 onCreateBackupClick = {
                     val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                     createDocumentLauncher.launch("palta_respaldo_$todayStr.json")

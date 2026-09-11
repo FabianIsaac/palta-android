@@ -33,4 +33,12 @@ interface SupplementLogDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllLogs(logs: List<SupplementLogEntity>)
+
+    @Query("SELECT supplementId, COUNT(*) as count FROM supplement_logs GROUP BY supplementId")
+    fun getAllSupplementIntakeCounts(): Flow<List<SupplementIntakeCountTuple>>
 }
+
+data class SupplementIntakeCountTuple(
+    val supplementId: String,
+    val count: Int
+)

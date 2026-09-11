@@ -131,6 +131,12 @@ class LocalSupplementRepository(
         }
     }
 
+    override fun getSupplementIntakeCounts(): Flow<Map<String, Int>> {
+        return supplementLogDao.getAllSupplementIntakeCounts().map { list ->
+            list.associate { it.supplementId to it.count }
+        }
+    }
+
     private fun SupplementEntity.toDomain(isTakenToday: Boolean = false): Supplement = Supplement(
         id = id,
         name = name,

@@ -13,13 +13,11 @@ BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-8802595675:AAFrDSSteYtO6fkgbEPhwmEV3EAS5YfZw40}
 CHAT_ID="${TELEGRAM_CHAT_ID:-87183064}"
 APK_PATH="$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
 
-if [ ! -f "$APK_PATH" ]; then
-    echo "El APK no existe. Compilando primero..."
-    export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-    export ANDROID_HOME="$HOME/Library/Android/sdk"
-    export PATH="$JAVA_HOME/bin:$PATH"
-    "$ROOT_DIR/gradlew" assembleDebug
-fi
+echo "Compilando APK actualizado..."
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$JAVA_HOME/bin:$PATH"
+"$ROOT_DIR/gradlew" assembleDebug
 
 echo "Enviando APK a Telegram (Chat ID: $CHAT_ID)..."
 

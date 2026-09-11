@@ -61,6 +61,7 @@ class SupplementsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { supplementRepository.getAllSupplements() } returns flowOf(sampleSupplements)
+        every { supplementRepository.getSupplementIntakeCounts() } returns flowOf(emptyMap())
     }
 
     @AfterEach
@@ -169,5 +170,69 @@ class SupplementsViewModelTest {
         coVerify(exactly = 1) {
             supplementRepository.deleteSupplement("custom_123")
         }
+    }
+
+    @Test
+    @DisplayName("Debe conmutar el colapso/expansión de sugerencias populares")
+    fun testToggleSuggestionsExpanded() = runTest(testDispatcher) {
+        val viewModel = SupplementsViewModel(supplementRepository, estimateSupplementNutritionUseCase)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.areSuggestionsExpanded)
+
+        viewModel.onEvent(SupplementsEvent.OnToggleSuggestionsExpanded)
+        assertTrue(viewModel.uiState.value.areSuggestionsExpanded)
+
+        viewModel.onEvent(SupplementsEvent.OnToggleSuggestionsExpanded)
+        assertFalse(viewModel.uiState.value.areSuggestionsExpanded)
+    }
+
+    @Test
+    @DisplayName("Debe observar el mapa de tomas históricas")
+    fun testObserveIntakeCounts() = runTest(testDispatcher) {
+        val counts = mapOf("creatina" to 14, "omega_3" to 5)
+        every { supplementRepository.getSupplementIntakeCounts() } returns flowOf(counts)
+
+        val viewModel = SupplementsViewModel(supplementRepository, estimateSupplementNutritionUseCase)
+        advanceUntilIdle()
+
+        assertEquals(14, viewModel.uiState.value.intakeCounts["creatina"])
+        assertEquals(5, viewModel.uiState.value.intakeCounts["omega_3"])
+    }
+
+    @Test
+    @DisplayName("Debe escanear imagen de tabla nutricional y autocompletar campos")
+    fun testScanNutritionLabelSuccess() = runTest(testDispatcher) {
+        val labelAnalyzerUseCase: com.calculadoracalorias.app.domain.usecase.AnalyzeNutritionLabelUseCase = mockk()
+        val scanResult = com.calculadoracalorias.app.domain.model.NutritionLabelScanResult(
+            productName = "Iso Whey",
+            servingDescription = "1 scoop (33g)",
+            servingGrams = 33.0,
+            calories = 110.0,
+            proteinGrams = 25.0,
+            carbsGrams = 1.0,
+            fatGrams = 1.0
+        )
+        val imageBytes = byteArrayOf(1, 2, 3)
+        coEvery { labelAnalyzerUseCase(imageBytes) } returns Result.success(scanResult)
+
+        val viewModel = SupplementsViewModel(
+            supplementRepository = supplementRepository,
+            estimateSupplementNutritionUseCase = estimateSupplementNutritionUseCase,
+            analyzeNutritionLabelUseCase = labelAnalyzerUseCase
+        )
+        advanceUntilIdle()
+
+        viewModel.onEvent(SupplementsEvent.OnScanImageSelected(imageBytes))
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isScanningLabel)
+        assertEquals("Iso Whey", viewModel.uiState.value.inputName)
+        assertEquals("1 scoop (33g)", viewModel.uiState.value.inputDosage)
+        assertEquals("110.0", viewModel.uiState.value.inputCalories)
+        assertEquals("25.0", viewModel.uiState.value.inputProtein)
+        assertEquals("1.0", viewModel.uiState.value.inputCarbs)
+        assertEquals("1.0", viewModel.uiState.value.inputFat)
+        assertEquals("Tabla nutricional analizada con éxito.", viewModel.uiState.value.successMessage)
     }
 }

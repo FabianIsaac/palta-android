@@ -1,6 +1,10 @@
 package com.calculadoracalorias.app.presentation.edit
 
-import androidx.compose.foundation.background
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +27,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,12 +44,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,22 +59,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.calculadoracalorias.app.R
-import com.calculadoracalorias.app.domain.model.HouseholdPortion
-import com.calculadoracalorias.app.domain.model.HouseholdUnit
+import com.calculadoracalorias.app.domain.model.NutritionLabelScanResult
 import com.calculadoracalorias.app.domain.model.ScannedFoodItem
 import com.calculadoracalorias.app.presentation.theme.CalculadoraCaloriasTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.util.Locale
 import java.util.UUID
 
@@ -75,6 +87,7 @@ fun AddIngredientSheet(
     onIngredientAdded: (ScannedFoodItem) -> Unit,
     onSearchCatalog: suspend (String) -> List<ScannedFoodItem>,
     onGetPopularFoods: suspend () -> List<ScannedFoodItem>,
+    onScanNutritionLabel: (suspend (ByteArray) -> Result<NutritionLabelScanResult>)? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -153,6 +166,7 @@ fun AddIngredientSheet(
                 )
             } else {
                 CustomTabContent(
+                    onScanNutritionLabel = onScanNutritionLabel,
                     onAddFood = { item ->
                         onIngredientAdded(item)
                         onDismiss()
@@ -448,14 +462,77 @@ private fun CatalogFoodRow(
 
 @Composable
 private fun CustomTabContent(
+    onScanNutritionLabel: (suspend (ByteArray) -> Result<NutritionLabelScanResult>)? = null,
     onAddFood: (ScannedFoodItem) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var name by remember { mutableStateOf("") }
     var gramsText by remember { mutableStateOf("100") }
     var caloriesPer100gText by remember { mutableStateOf("") }
     var proteinPer100gText by remember { mutableStateOf("") }
     var carbsPer100gText by remember { mutableStateOf("") }
     var fatPer100gText by remember { mutableStateOf("") }
+
+    var isScanning by remember { mutableStateOf(false) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
+
+    fun processImageBytes(bytes: ByteArray) {
+        if (onScanNutritionLabel == null) return
+        isScanning = true
+        scanError = null
+        coroutineScope.launch {
+            val result = onScanNutritionLabel(bytes)
+            isScanning = false
+            if (result.isSuccess) {
+                val scan = result.getOrThrow()
+                if (!scan.productName.isNullOrBlank()) {
+                    name = scan.productName
+                }
+                val servingGrams = scan.servingGrams ?: 100.0
+                gramsText = if (servingGrams % 1.0 == 0.0) servingGrams.toInt().toString() else "%.1f".format(Locale.US, servingGrams)
+
+                val calsPer100g = if (servingGrams > 0) (scan.calories * 100.0) / servingGrams else scan.calories
+                val protPer100g = if (servingGrams > 0) (scan.proteinGrams * 100.0) / servingGrams else scan.proteinGrams
+                val carbsPer100g = if (servingGrams > 0) (scan.carbsGrams * 100.0) / servingGrams else scan.carbsGrams
+                val fatPer100g = if (servingGrams > 0) (scan.fatGrams * 100.0) / servingGrams else scan.fatGrams
+
+                caloriesPer100gText = if (calsPer100g % 1.0 == 0.0) calsPer100g.toInt().toString() else "%.1f".format(Locale.US, calsPer100g)
+                proteinPer100gText = if (protPer100g % 1.0 == 0.0) protPer100g.toInt().toString() else "%.1f".format(Locale.US, protPer100g)
+                carbsPer100gText = if (carbsPer100g % 1.0 == 0.0) carbsPer100g.toInt().toString() else "%.1f".format(Locale.US, carbsPer100g)
+                fatPer100gText = if (fatPer100g % 1.0 == 0.0) fatPer100g.toInt().toString() else "%.1f".format(Locale.US, fatPer100g)
+            } else {
+                scanError = result.exceptionOrNull()?.message ?: "No se pudo interpretar la tabla nutricional. Revisa la imagen o ingresa los datos manualmente."
+            }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            val stream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+            processImageBytes(stream.toByteArray())
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val bytes = try {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            } catch (_: Exception) {
+                null
+            }
+            if (bytes != null) {
+                processImageBytes(bytes)
+            }
+        }
+    }
 
     val isValidName = name.trim().isNotBlank()
     val grams = gramsText.toDoubleOrNull() ?: 0.0
@@ -469,6 +546,40 @@ private fun CustomTabContent(
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // Botón opcional de Escanear Tabla Nutricional
+        if (onScanNutritionLabel != null) {
+            OutlinedButton(
+                onClick = { showImageSourceDialog = true },
+                enabled = !isScanning,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isScanning) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.btn_scanning_label))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.btn_scan_nutrition_label))
+                }
+            }
+        }
+
+        scanError?.let { err ->
+            Text(
+                text = err,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
@@ -564,6 +675,56 @@ private fun CustomTabContent(
             Spacer(modifier = Modifier.width(6.dp))
             Text(stringResource(R.string.btn_add_to_meal))
         }
+    }
+
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text(stringResource(id = R.string.dialog_select_image_source_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            cameraLauncher.launch(null)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(id = R.string.btn_take_photo_camera))
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            galleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(id = R.string.btn_pick_gallery))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text(stringResource(id = R.string.btn_dialog_cancel))
+                }
+            }
+        )
     }
 }
 

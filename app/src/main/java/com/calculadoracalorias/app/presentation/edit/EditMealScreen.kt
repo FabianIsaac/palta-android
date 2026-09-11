@@ -88,6 +88,7 @@ fun EditMealScreen(
     onNavigateBack: () -> Unit,
     onSearchCatalog: (suspend (String) -> List<ScannedFoodItem>)? = null,
     onGetPopularFoods: (suspend () -> List<ScannedFoodItem>)? = null,
+    onScanNutritionLabel: (suspend (ByteArray) -> Result<com.calculadoracalorias.app.domain.model.NutritionLabelScanResult>)? = null,
     modifier: Modifier = Modifier
 ) {
     BackHandler { onNavigateBack() }
@@ -98,8 +99,9 @@ fun EditMealScreen(
     var showDatePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
+        uiState.errorMessage?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            onEvent(EditMealEvent.OnDismiss)
         }
     }
 

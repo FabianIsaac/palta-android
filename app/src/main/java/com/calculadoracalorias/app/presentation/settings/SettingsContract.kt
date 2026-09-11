@@ -52,6 +52,7 @@ data class SettingsUiState(
     val lastAutoBackupTimestamp: Long? = null,
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
+    val isSyncingDrive: Boolean = false,
     val pendingRestorePreview: BackupPreviewInfo? = null,
     val userMessage: String? = null,
     val errorMessage: String? = null

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: "2026-09-11"
+name: nutrition-label-scanner-and-supplement-intake
+description: Escaneo con IA de tablas nutricionales (cámara y galería) para suplementos y comidas personalizadas, colapso de sugerencias y contador de tomas en la rutina de suplementos.

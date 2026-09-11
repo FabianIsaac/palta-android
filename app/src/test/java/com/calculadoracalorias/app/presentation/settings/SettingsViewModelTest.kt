@@ -222,7 +222,7 @@ class SettingsViewModelTest {
         coVerify(exactly = 1) { userPreferencesRepository.setAutoBackupEnabled(true) }
         verify(exactly = 1) { autoBackupScheduler.scheduleDailyBackup() }
         verify(exactly = 1) { autoBackupScheduler.triggerImmediateBackup() }
-        assertEquals("Carpeta vinculada para respaldo automático", viewModel.uiState.value.userMessage)
+        assertEquals("Carpeta vinculada y respaldo sincronizado con Google Drive", viewModel.uiState.value.userMessage)
     }
 
     @Test
@@ -267,6 +267,7 @@ class SettingsViewModelTest {
 
         coVerify(exactly = 1) { userPreferencesRepository.setAutoBackupEnabled(true) }
         verify(exactly = 1) { autoBackupScheduler.scheduleDailyBackup() }
+        verify(exactly = 1) { autoBackupScheduler.triggerImmediateBackup() }
         assertEquals("Respaldo automático activado", viewModel.uiState.value.userMessage)
 
         viewModel.onToggleAutoBackup(false)
@@ -275,6 +276,57 @@ class SettingsViewModelTest {
         coVerify(exactly = 1) { userPreferencesRepository.setAutoBackupEnabled(false) }
         verify(exactly = 1) { autoBackupScheduler.cancelAutoBackup() }
         assertEquals("Respaldo automático desactivado", viewModel.uiState.value.userMessage)
+    }
+
+    @Test
+    @DisplayName("onSyncDriveNow con carpeta vinculada dispara respaldo inmediato y notifica")
+    fun testSyncDriveNowSuccess() = runTest(testDispatcher) {
+        every { userPreferencesRepository.userPreferencesFlow } returns flowOf(
+            UserPreferences(
+                autoBackupEnabled = true,
+                autoBackupFolderUri = "content://mock/folder",
+                autoBackupFolderName = "Carpeta Mock"
+            )
+        )
+
+        val viewModel = SettingsViewModel(
+            userPreferencesRepository = userPreferencesRepository,
+            exportBackupUseCase = exportBackupUseCase,
+            importBackupUseCase = importBackupUseCase,
+            autoBackupScheduler = autoBackupScheduler
+        )
+        advanceUntilIdle()
+
+        viewModel.onSyncDriveNow()
+        advanceUntilIdle()
+
+        verify(atLeast = 1) { autoBackupScheduler.triggerImmediateBackup() }
+        assertEquals("Respaldo sincronizado con Google Drive exitosamente", viewModel.uiState.value.userMessage)
+        assertEquals(false, viewModel.uiState.value.isSyncingDrive)
+    }
+
+    @Test
+    @DisplayName("onSyncDriveNow sin carpeta vinculada muestra mensaje de error")
+    fun testSyncDriveNowWithoutFolderShowsError() = runTest(testDispatcher) {
+        every { userPreferencesRepository.userPreferencesFlow } returns flowOf(
+            UserPreferences(
+                autoBackupEnabled = false,
+                autoBackupFolderUri = null
+            )
+        )
+
+        val viewModel = SettingsViewModel(
+            userPreferencesRepository = userPreferencesRepository,
+            exportBackupUseCase = exportBackupUseCase,
+            importBackupUseCase = importBackupUseCase,
+            autoBackupScheduler = autoBackupScheduler
+        )
+        advanceUntilIdle()
+
+        viewModel.onSyncDriveNow()
+        advanceUntilIdle()
+
+        assertEquals("Debes vincular una carpeta de Google Drive primero", viewModel.uiState.value.errorMessage)
     }
 
     @Test
